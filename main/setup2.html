@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ROBOBIKE ADVANCED SETUP</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding-top: 5px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 150px;
+            margin: 5px auto 20px auto;
+        }
+
+        button {
+            width: 48%;
+            height: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-left {
+            background-color: #88AAff;
+        }
+
+        .btn-right {
+            background-color: #88aaff;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>ROBOBIKE ADVANCED SETUP</h2>
+
+    <!-- STEERING GAIN -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color: teal;">STEERING GAIN</span>
+            <span id="gain_str">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_S_Up')">↑</button>
+            <button class="btn-right" onclick="sendCommand('bt_S_Dn')">↓</button>
+        </div>
+    </div>
+
+    <!-- ROLL GAIN -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color:  teal;">ROLLING GAIN</span>
+            <span id="gain_w_roll">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_R_Up')">↑</button>
+            <button class="btn-right" onclick="sendCommand('bt_R_Dn')">↓</button>
+        </div>
+    </div>
+
+    <!-- Diff Gain -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color:  teal;">DIFFERENTIAL GAIN</span>
+            <span id="gain_diff">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_D_Up')">↑</button>
+            <button class="btn-right" onclick="sendCommand('bt_D_Dn')">↓</button>
+        </div>
+    </div>
+
+    <!-- yaw coeff -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color:  teal;">YAW COEFF.</span>
+            <span id="yaw_coeff">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_yaw_coeffUp')">↑</button>
+            <button class="btn-right" onclick="sendCommand('bt_yaw_coeffDn')">↓</button>
+        </div>
+    </div>
+
+    <!-- Load default -->
+    <div id="default-loading-dialog" style="
+        display: none;
+        position: fixed;   /* ← これを追加 */
+        top: 30%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #fff;
+        border: 3px solid #88dd88;
+        padding: 40px;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 10px;
+        z-index: 999;
+        width: 100%;
+        max-width: 600px;
+        box-sizing: border-box;">
+        LOAD DEFAULT VALUES<br><br>
+        <div style="display: flex; justify-content: center; gap: 20px;">
+            <button style="width: 120px; height: 50px;"
+                onclick="sendCommand('bt_Ld_Default'); closeDialog();">OK</button>
+            <button style="width: 120px; height: 50px;" onclick="closeDialog()">CANCEL</button>
+        </div>
+    </div>
+
+    <!-- autoCircling -->
+    <div style="margin-top: 20px; text-align: center;">
+        <label style="font-size: 16px; font-weight: bold;">
+            <input type="checkbox" id="ir_checkbox" onchange="toggleIR()">
+            AUTO CIRCLING
+        </label>
+    </div>
+
+    <button onclick="openDialog()" style="
+        width: 50%;
+        height: 70px;
+        font-size: 16px;
+        border-radius: 10px;
+        display: block;
+        margin: 20px auto;">
+        LOAD DEFAULT
+    </button>
+
+    <button onclick="notifyThenRedirect()" style="
+        width: 50%;
+        height: 70px;
+        font-size: 16px;
+        border-radius: 10px;
+        display: block;
+        margin: 20px auto;">
+        EXIT
+    </button>
+
+    <script>
+        // 1. C言語の snprintf の並び順と完全に一致させる
+        const CSV_KEYS = [
+            "HEADER",       // 0: 'b'
+            "PROG_VER",     // 1
+            "DATA_VER",     // 2
+            "STATUS",       // 3
+            "STR0",         // 4
+            "MOT_SPD",      // 5
+            "GAIN_STR",     // 6
+            "GAIN_W_ROLL",  // 7
+            "GAIN_DIFF",    // 8
+            "ANG_STD_NUT",  // 9
+            "STR_TURN",     // 10
+            "YAW_COEFF",    // 11
+            "AUTO_CIRCLING",// 12
+            "STR_CMD_RATE"  // 13
+        ];
+
+        // インデックスを自動生成 { HEADER: 0, PROG_VER: 1, ... }
+        const CSV_IDX = Object.fromEntries(CSV_KEYS.map((key, index) => [key, index]));
+
+        function toggleIR() {
+            const isOn = document.getElementById('ir_checkbox').checked;
+            const cmd = isOn ? 'IR_ON' : 'IR_OFF';
+            sendCommand(cmd);
+        }
+
+        // 引数を data (配列) に変更
+        function updateDisplay(data) {
+            // ヘッダーチェック
+            if (!data || data[CSV_IDX.HEADER] !== 'b') return;
+
+            // 各数値をパースして表示を更新
+            if (document.getElementById('gain_str'))
+                document.getElementById('gain_str').innerText = Number(data[CSV_IDX.GAIN_STR]).toFixed(3);
+
+            if (document.getElementById('gain_w_roll'))
+                document.getElementById('gain_w_roll').innerText = Number(data[CSV_IDX.GAIN_W_ROLL]).toFixed(0);
+
+            if (document.getElementById('gain_diff'))
+                document.getElementById('gain_diff').innerText = Number(data[CSV_IDX.GAIN_DIFF]).toFixed(3);
+
+            if (document.getElementById('yaw_coeff'))
+                document.getElementById('yaw_coeff').innerText = Number(data[CSV_IDX.YAW_COEFF]).toFixed(3);
+
+            // チェックボックスの状態 (autoCirclingが1ならON)
+            if (document.getElementById('ir_checkbox'))
+                document.getElementById('ir_checkbox').checked = parseInt(data[CSV_IDX.AUTO_CIRCLING]) === 1;
+        }
+
+        function sendCommand(button) {
+            fetch(`/command?button=${button}`)
+                .then(response => response.text()) // JSONではなくテキストを取得
+                .then(csvText => {
+                    // splitしたあと、各要素の前後空白（改行コード含む）を除去
+                    const dataArray = csvText.split(',').map(item => item.trim());
+                    updateDisplay(dataArray);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function fetchInitialData() {
+            sendCommand('only_data');
+        }
+
+        function setupHoldButton(buttonElement, command) {
+            if (!buttonElement) return;
+            let intervalId = null;
+
+            const startRepeat = () => {
+                sendCommand(command);
+                intervalId = setInterval(() => sendCommand(command), 300);
+            };
+
+            const stopRepeat = () => {
+                clearInterval(intervalId);
+                intervalId = null;
+            };
+
+            buttonElement.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                startRepeat();
+            });
+            buttonElement.addEventListener("touchend", stopRepeat);
+            buttonElement.addEventListener("touchcancel", stopRepeat);
+        }
+
+        function openDialog() {
+            if (document.getElementById('default-loading-dialog'))
+                document.getElementById('default-loading-dialog').style.display = 'block';
+        }
+
+        function closeDialog() {
+            if (document.getElementById('default-loading-dialog'))
+                document.getElementById('default-loading-dialog').style.display = 'none';
+        }
+
+        function notifyThenRedirect() {
+            window.location.href = '/setup';
+        }
+
+        window.addEventListener("load", () => {
+            fetchInitialData();
+            // 各ボタンの長押し設定
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_S_Up')\"]"), "bt_S_Up");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_S_Dn')\"]"), "bt_S_Dn");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_R_Up')\"]"), "bt_R_Up");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_R_Dn')\"]"), "bt_R_Dn");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_D_Up')\"]"), "bt_D_Up");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_D_Dn')\"]"), "bt_D_Dn");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_yaw_coeffUp')\"]"), "bt_yaw_coeffUp");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_yaw_coeffDn')\"]"), "bt_yaw_coeffDn");
+        });
+    </script>
+</body>
+
+</html>

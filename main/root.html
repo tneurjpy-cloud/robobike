@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>BICYCLE ROBOT Control</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            flex-direction: column;
+        }
+
+        .forward-button {
+            width: 28%;
+            height: 75px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            background-color: #81abff;
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 5vw;
+            width: 100%;
+        }
+
+        button {
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            width: 28%;
+            height: 75px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-lr {
+            background-color: #81abff;
+        }
+
+        .btn-lr2 {
+            background-color: #81abff;
+            height: 50px;
+        }
+
+        .btn-start {
+            background-color: #fd7878;
+            width: 28%;
+            height: 75px;
+            margin-top: 30px;
+        }
+
+        .btn-bk {
+            background-color: #81abff;
+            width: 28%;
+            height: 50px;
+            margin-top: 30px;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        /* Slider for steering */
+        #slider {
+            width: 90vw;
+            height: 50px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        /* スライダーのつまみ（thumb）のスタイル */
+        #slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 75px;
+            height: 45px;
+            background: #333;
+            cursor: pointer;
+        }
+
+        #slider::-moz-range-thumb {
+            width: 20px;
+            height: 30px;
+            background: #333;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>ROBOBIKE CONTROL</h2>
+
+    <div class="button-container">
+        <button class="btn-lr" ontouchstart="startCommand('bt_L')" ontouchend="cancelCommand()">←<br>LEFT</button>
+        <button class="forward-button" ontouchstart="sendCommand('bt_F')">↑<br>FORWARD</button>
+        <button class="btn-lr" ontouchstart="startCommand('bt_R')" ontouchend="cancelCommand()">→<br>RIGHT</button>
+    </div>
+
+    <input type="range" id="slider" min="-100" max="100" step="1" value="0">
+
+    <button class="btn-start" ontouchstart="sendCommand('bt_S')">!<br>STOP</button>
+    <br>
+    <button class="btn-bk" ontouchstart="sendCommand('bt_BK')">BACK</button>
+    <br>
+
+    <!-- Drive Speed -->
+    <div style="font-size: 16px; text-align: center; font-weight: bold;">
+        <span style="color: rgb(255, 0, 0);">DRIVE SPEED</span>
+        <span id="mot_spd">---</span>
+    </div>
+    <div class="button-container">
+        <button class="btn-lr2" onclick="sendCommand('bt_A_Up_0')">↑</button>
+        <button class="btn-lr2" onclick="sendCommand('bt_A_Dn_0')">↓</button>
+    </div>
+
+    <button onclick="window.location.href='/setup';" style="
+        height: 70px; 
+        font-size: 16px; 
+        border-radius: 15px; 
+        width: 50%; 
+        margin-top: 40px;">
+        SETUP
+    </button>
+
+    <script>
+        const SLD_MIN = -100;
+        const SLD_MAX = 100;
+        const slider = document.getElementById('slider');
+        let lastValue = slider.value;
+
+        // 1. C言語の並び順と同じ配列定義
+        const CSV_KEYS = [
+            "HEADER",       // 0: 'b'
+            "PROG_VER",     // 1
+            "DATA_VER",     // 2
+            "STATUS",       // 3
+            "STR0",         // 4
+            "MOT_SPD",      // 5
+            "GAIN_STR",     // 6
+            "GAIN_W_ROLL",  // 7
+            "GAIN_DIFF",    // 8
+            "ANG_STD_NUT",  // 9
+            "STR_TURN",     // 10
+            "YAW_COEFF",    // 11
+            "AUTO_CIRCLING",// 12
+            "STR_CMD_RATE"  // 13
+        ];
+
+        // 2. 【重要】配列からインデックス番号を引けるオブジェクトを自動生成
+        // これにより CSV_IDX.MOT_SPD が 5 を返すようになります
+        const CSV_IDX = Object.fromEntries(CSV_KEYS.map((key, index) => [key, index]));
+
+        function updateDisplay(dataArray) {
+            // 文字列ではなく配列が渡されることを想定
+            if (!dataArray || dataArray[CSV_IDX.HEADER] !== 'b') return;
+
+            if (document.getElementById('mot_spd')) {
+                document.getElementById('mot_spd').innerText = dataArray[CSV_IDX.MOT_SPD];
+            }
+        }
+
+        function fetchInitialData() {
+            sendCommand('only_data');
+        }
+
+        window.onload = fetchInitialData;
+
+        // スライダーの変化を監視して送信
+        setInterval(() => {
+            const currentValue = slider.value;
+            if (currentValue !== lastValue) {
+                lastValue = currentValue;
+                sendValue('bt_Str_S', currentValue);
+            }
+        }, 250);
+
+        function startCommand(button) {
+            sendCommand(button);
+        }
+
+        function sendCommand(button) {
+            const url = `/command?button=${button}`;
+            fetch(url)
+                .then(response => response.text())
+                .then(csvText => {
+                    const data = csvText.split(',').map(s => s.trim());
+
+                    if (data[CSV_IDX.HEADER] !== 'b') {
+                        console.warn("Unknown data format:", csvText);
+                        return;
+                    }
+
+                    // mot_spd を更新
+                    if (data[CSV_IDX.MOT_SPD] !== undefined) {
+                        document.getElementById('mot_spd').innerText = data[CSV_IDX.MOT_SPD];
+                    }
+
+                    // ステアリング値をスライダーに反映
+                    if (data[CSV_IDX.STR_CMD_RATE] !== undefined) {
+                        const rate = parseFloat(data[CSV_IDX.STR_CMD_RATE]);
+                        slider.value = rate;
+                        lastValue = slider.value;
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function sendValue(cmd, value) {
+            const url = `/command?button=${cmd}&value=${value}`;
+            fetch(url)
+                .then(response => response.text())
+                .then(csvText => {
+                    // 返ってきたCSVを解析して表示を更新
+                    const dataArray = csvText.split(',').map(s => s.trim());
+                    updateDisplay(dataArray);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        document.getElementById("slider").min = SLD_MIN;
+        document.getElementById("slider").max = SLD_MAX;
+    </script>
+</body>
+
+</html>

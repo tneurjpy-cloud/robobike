@@ -1,0 +1,2 @@
+idf_component_register(SRCS main.c control.c servo.c IMU.c icm426xx.c userdevice.c webserver.c taskwatch.c
+    EMBED_FILES root.html setup.html setup2.html ota.html monitor.html favicon.ico)
