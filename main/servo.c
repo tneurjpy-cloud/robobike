@@ -15,12 +15,12 @@ static const char TAG[] = "servo";
 
 #define USEC2LEDCDUTY(x) ((x) * 16384 / (1000000 / SERVO_FREQ))
 
-bool autoPilot = false;
 float str_cmd0; // deg +-90.0f
 float str_cmd1; // deg
 float str_cmd2; // deg
 float str_step; // deg/cycle
 float str_out;  // deg
+TRunState runState = rsOuter;
 
 float mot_cmd;  // % +-100.0f
 float mot_step; // %/cycle
@@ -90,25 +90,6 @@ static ledc_channel_config_t svch_ex1 = {
     .hpoint = 0};
 
 ///////////////////////////////////////////////////////////////////
-
-// ABS limitation
-void chklimit(float *x, float max)
-{
-    if (*x < -max)
-    {
-        *x = -max;
-    }
-    else if (*x > max)
-    {
-        *x = max;
-    }
-}
-
-///////////////////////////////////////////////////////////////////
-static uint32_t chk_start;
-TRunState runState = rsOuter;
-int chgCount = 0;
-
 /// in task web-server ///
 void set_str_cmd(float angle, float step)
 {
@@ -153,88 +134,9 @@ static void str_easing()
     }
 }
 
-// servo control task
-// chk_start : ステートの開始時刻
-static void do_str_cmd_calc()
-{
-    if (autoCircling)
-    {
-        switch (runState)
-        {
-        case rsOuter: // 円周外 通常走行
-            if (autoPilot && (gpio_get_level(IO_2) == 0) && (millis - chk_start > 1000))
-            {
-                if (chgCount < 3)
-                {
-                    ++chgCount;
-                }
-                else
-                {
-                    runState = rsInner_Correct;
-                    chk_start = millis;
-                    chgCount = 0;
-                }
-            }
-            else
-            {
-                chgCount = 0;
-            }
-            break;
-
-        case rsInner_Correct: // 円周内 修正動作実行
-            if (gpio_get_level(IO_2) == 1)
-            {
-                if (chgCount < 3)
-                {
-                    ++chgCount;
-                }
-                else
-                {
-                    runState = rsOuter;
-                    chk_start = millis;
-                    chgCount = 0;
-                }
-            }
-
-            if ((millis - chk_start) >= AUTOCORRECTTIME)
-            {
-                runState = rsInner_Stable;
-                chk_start = millis;
-                chgCount = 0;
-            }
-            break;
-
-        case rsInner_Stable: // 円周内 修正動作終了
-            if (gpio_get_level(IO_2) == 1 && (millis - chk_start > 1000))
-            {
-                if (chgCount < 3)
-                {
-                    ++chgCount;
-                }
-                else
-                {
-                    runState = rsOuter;
-                    chk_start = millis;
-                    chgCount = 0;
-                }
-            }
-            else
-            {
-                chgCount = 0;
-            }
-            break;
-        }
-    }
-    else
-    {
-        runState = rsOuter;
-    }
-    str_easing();
-}
-
 /// servo control task
 // angle: deg -90/+90 ang + = right turn
-static void str_pwm_out(float angle)
+void str_pwm_out(float angle)
 {
     str_out = angle;
     uint32_t pulsew = (angle + (float)saved.str0) * ANG2PULSE + 1500;
@@ -260,7 +162,7 @@ void wait_str_angle()
 void set_ex1_angle(float angle, float step)
 {
     ex1_step = step;
-    ex1_cmd = angle * ANG2PULSE + 1500.0f
+    ex1_cmd = angle * ANG2PULSE + 1500.0f;
 }
 
 /// in task web-server ///
@@ -429,50 +331,14 @@ void auto_disable()
     auto_en = false;
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// servo control task
-// 307-653us to do gyroServiceLoop()
-//   -> pulse ->  USEC2LEDCDUTY(pulse)
-static void gyroServiceLoop()
-{
-    static float last_str_dev = 0.0f;
-    static float str_diff_lps = 0.0f;
-    float w_roll_dev, str_dev, str_dev_diff; // 偏差
-    float w_roll_cmd;
-
-    if (auto_en)
-    {
-        str_dev = str_cmd2 - str_out;                             // ステア偏差
-        str_dev_diff = (str_dev - last_str_dev) * SERVO_FREQ;     // 偏差変化率
-        str_diff_lps =                                            // lopass
-            saved.str_diff_alph * str_diff_lps                    //
-            + (1.0f - saved.str_diff_alph) * str_dev_diff;        //
-        w_roll_cmd =                                              // ロール角目標値 =
-            -str_dev * saved.gain_str                             //
-            - str_diff_lps * saved.gain_str_diff;                 // P*St + D*dSt
-        w_roll_dev = w_roll_cmd - IMU_roll();                     // IMU読出し,角速度偏差算出
-        str_out +=                                                // ステアサーボ増分
-            w_roll_dev * saved.gain_w_roll * (1.0f / SERVO_FREQ); //
-        last_str_dev = str_dev;                                   // 偏差記憶
-        chklimit(&str_out, STRMAX);
-        str_pwm_out(str_out); // + = right turn
-    }
-    else
-    {
-        last_str_dev = 0.0f; // reset old values
-        str_diff_lps = 0.0f;
-        str_out = 0.0f;
-        str_pwm_out(str_cmd2); // + = right turn
-        IMU_getZero();         // auto calibration n sec average
-    }
-}
-
 //// STR servo PWM Lo->Hi edge trigger interrupt ////////////////////////////
 static TimerHandle_t delay_timer;
 TaskHandle_t xControlTaskHandle = NULL;
 
 static void ControlTask(void *pvParameters)
 {
+    void gyroServiceLoop(), do_str_cmd_calc();
+
     acc_offset = saved.acc_offset;
     for (;;)
     {
@@ -484,6 +350,7 @@ static void ControlTask(void *pvParameters)
         do_ex1_out();
         do_mot_out();
         do_str_cmd_calc();
+        str_easing();
         gpio_set_level(IO_1, 0);
         saved.acc_offset = acc_offset;
     }
@@ -505,6 +372,8 @@ static void IRAM_ATTR gpio_str_isr_handler(void *arg)
 #define MSEC_DELAY_LOOP (1000 / SERVO_FREQ - 1)
 void servo_init()
 {
+    extern void control_init();
+
     pyaw_coeff = &saved.yaw_coeff;
 
     ESP_ERROR_CHECK(ledc_timer_config(&servo_timer));
@@ -512,19 +381,7 @@ void servo_init()
     ESP_ERROR_CHECK(ledc_channel_config(&svch_str));
     ESP_ERROR_CHECK(ledc_channel_config(&svch_ex1));
 
-    // Check IR sensor install, avoid mirror
-    gpio_set_level(IO_1, 1); // IR LED ON
-    waitms(1);
-    if (gpio_get_level(IO_2) == 1) // check pullup voltage
-    {
-        gpio_set_level(IO_1, 0); // IR LED OFF
-        waitms(1);
-        if (gpio_get_level(IO_2) == 0) // check pullup voltage
-        {
-            autoPilot = true;
-        }
-    }
-    gpio_set_level(IO_1, 0); // IR LED OFF
+    control_init();
 
     str_pwm_out(0);
     set_mot_duty(0, 1000);
