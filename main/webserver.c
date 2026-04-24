@@ -4,7 +4,6 @@ idf_component_register(SRCS main.c servo.c IMU.c icm426xx.c userdevice.c webserv
    EMBED_FILES root.html setup.html setup2.html ota.html)
 */
 #include "userdefine.h"
-#include "web_common.h"
 
 static const char *TAG = "websrv";
 

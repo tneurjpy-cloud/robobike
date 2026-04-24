@@ -24,9 +24,12 @@ extern float *pyaw_coeff;
 // IMUの出力軸定義に基づいて、物理的意味に対応するマクロを定義する
 // IMUの取り付け方向を変えたら、ここだけを変更すればよい
 // IMUのROLL軸を示す方向ベクトル
-#define GY_YAW (acc.gx)   // left turn is positive
-#define GY_ROLL (acc.gy)  // left tilt is positive
-#define GY_PITCH (acc.gz) // pitch up is positive
+#define GY_YAW (acc.gx)    // left turn is positive
+#define GY_ROLL (acc.gy)   // left tilt is positive
+#define GY_PITCH (acc.gz)  // pitch up is positive
+#define PGY_YAW (pa->gx)   // left turn is positive
+#define PGY_ROLL (pa->gy)  // left tilt is positive
+#define PGY_PITCH (pa->gz) // pitch up is positive
 
 #define GYDIR_YAW (*pyaw_coeff)
 #define GYDIR_ROLL 0.9996f
@@ -48,4 +51,3 @@ float IMU_roll();
 float IMU_side_acc();
 void IMU_sleep();
 void IMU_getZero();
-const char *get_unread_data();

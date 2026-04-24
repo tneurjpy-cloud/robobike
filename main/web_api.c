@@ -1,5 +1,4 @@
 #include "userdefine.h"
-#include "web_common.h"
 
 static const char *TAG = "web_api";
 
@@ -49,3 +48,76 @@ char *mkcsv()
     return rescsv;
 }
 
+////////////////////////////////////////////////////////
+typedef struct
+{
+    uint32_t time;
+    Tvector6d acc;
+    float drv;
+    float str;
+    float std;
+} Tlogvector;
+
+#define RING_BUF_SIZE (SAMPLE_RATE_HZ * 3)
+Tlogvector ring_buffer[RING_BUF_SIZE];
+static int index_w = 0;
+static int index_r = 0; // 最後に読み出した位置
+
+////////////////////////////////////////////////////////
+/// called in 5msec loop
+void push_data(Tvector6d *new_data)
+{
+    Tlogvector *p;
+
+    p = &ring_buffer[index_w];
+    p->time = millis;
+    p->acc = *new_data;
+    p->drv = mot_out;
+    p->str = str_out;
+    p->std = ex1_out;
+    p->drv = mot_out;
+    p->str = str_out;
+    p->std = ex1_out;
+    index_w = (index_w + 1) % RING_BUF_SIZE;
+
+    // もし未取得データがn秒分を超えたら、index_rを強制的に進める（古いデータを捨てる）
+    if (index_w == index_r)
+    {
+        index_r = (index_r + 1) % RING_BUF_SIZE;
+    }
+}
+
+const char *get_unread_data()
+{
+    static char buf[4096];
+    char item_buf[96];
+
+    /*  for java script
+    const MON_CSV_KEYS = [
+        "HEADER",   // 0: 'a'
+        "TIME_MS",  // 1
+        "SV_DRV",   // 2
+        "SV_STR",   // 3
+        "SV_STD",   // 4
+        "GY_ROLL",  // 5
+        "GY_YAW",   // 6
+        "GY_PITCH", // 7
+    ];
+    */
+        buf[0] = '\0';
+    while (index_r != index_w)
+    {
+        Tlogvector *p = &ring_buffer[index_r];
+        Tvector6d *pa = &p->acc;
+        int len = snprintf(item_buf, sizeof(item_buf),
+                           "a,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                           p->time, p->drv, p->str, p->std, PGY_ROLL, PGY_YAW, PGY_PITCH);
+        if (strlen(buf) + len + 1 > sizeof(buf))
+        {
+            break;
+        }
+        strcat(buf, item_buf);
+        index_r = (index_r + 1) % RING_BUF_SIZE;
+    }
+    return buf;
+}

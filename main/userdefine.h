@@ -71,9 +71,10 @@ Date        CODE    DATA    Description
 #include <nvs_flash.h>
 #include <nvs.h>
 #include <dns_server.h>
-#include <esp_ota_ops.h>
 #include <esp_timer.h>
-
+#include <esp_http_server.h>
+#include "esp_ota_ops.h"
+#include "esp_partition.h"
 
 #include "IMU.h"
 
@@ -97,8 +98,8 @@ Date        CODE    DATA    Description
 #define SERVO_NEUTRAL_DUTY (1500.0f)       // 0deg 1500us
 #define STR_ADJ_MIN (-20)                  //
 #define STR_ADJ_MAX (20)                   //
-#define STR_CMD_SPD_P (50.0f / SERVO_FREQ) // deg/s positive
-#define STR_CMD_SPD_N (27.5f / SERVO_FREQ) // deg/s negative
+#define STR_CMD_SPD_P (45.0f / SERVO_FREQ) // deg/s positive
+#define STR_CMD_SPD_N (25.0f / SERVO_FREQ) // deg/s negative
 #define STR_SLIDER_MAX 100.0f              // +-100
 #define STR_GA_MAX 0.200f                  //
 #define STR_GA_MIN 0.001f                  //
@@ -170,6 +171,21 @@ extern bool autoCircling; // do auto circling
 
 extern volatile uint32_t userLastControlTime;
 
+// webserver handlers
+extern const httpd_uri_t root;
+extern const httpd_uri_t command;
+extern const httpd_uri_t setup;
+extern const httpd_uri_t setup2;
+extern const httpd_uri_t monitor;
+extern const httpd_uri_t get_acc;
+extern const httpd_uri_t favicon;
+extern const httpd_uri_t generate_204;
+extern const httpd_uri_t hotspot;
+extern const httpd_uri_t ncsi;
+extern const httpd_uri_t generate_204;
+extern const httpd_uri_t ota_update;
+extern const httpd_uri_t ota;
+
 ///////////////// common function declarations ////////////////
 bool isNms(uint32_t *lastNms, uint32_t Nms);
 
@@ -192,3 +208,7 @@ void savenvs();
 void webserver_start();
 
 char *SysID();
+char *mkcsv();
+esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err);
+void push_data(Tvector6d *new_data);
+const char *get_unread_data();
