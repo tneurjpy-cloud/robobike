@@ -1,7 +1,7 @@
 /*
     RC bicycle with WiFi captive portal
 
-    Copyright 2025.06.17 M.Tanaami
+    Copyright 2026.04.24 M.Tanaami
 */
 
 #include "userdefine.h"

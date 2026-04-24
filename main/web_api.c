@@ -65,7 +65,7 @@ static int index_r = 0; // 最後に読み出した位置
 
 ////////////////////////////////////////////////////////
 /// called in 5msec loop
-void push_data(Tvector6d *new_data)
+void put_data(Tvector6d *new_data)
 {
     Tlogvector *p;
 
@@ -87,7 +87,7 @@ void push_data(Tvector6d *new_data)
     }
 }
 
-const char *get_unread_data()
+const char *get_data()
 {
     static char buf[4096];
     char item_buf[96];
@@ -104,14 +104,14 @@ const char *get_unread_data()
         "GY_PITCH", // 7
     ];
     */
-        buf[0] = '\0';
+    buf[0] = '\0';
     while (index_r != index_w)
     {
         Tlogvector *p = &ring_buffer[index_r];
         Tvector6d *pa = &p->acc;
         int len = snprintf(item_buf, sizeof(item_buf),
                            "a,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-                           p->time, p->drv, p->str, p->std, PGY_ROLL, PGY_YAW, PGY_PITCH);
+                           p->time, p->drv, p->str, p->std, pa->ROLL_A, pa->YAW_A, pa->PITCH_A);
         if (strlen(buf) + len + 1 > sizeof(buf))
         {
             break;

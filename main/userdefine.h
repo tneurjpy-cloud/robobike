@@ -1,49 +1,13 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-* How to set up IntelliSense in VS Code:
-(1) Install the ESP-IDF Extension.
-(2) (Ctrl+Shift+P)Run the command "ESP-IDF: Add vscode configuration folder".
-(3) Perform a Build to generate necessary configuration files.
-
-* Settings from menuconfig are saved to \project\sdkconfig
-* Change via menuconfig, KCONFIG Name:
-    configTICK_RATE_HZ 1000(Hz)
-    Flash size : 4MB
-    Partition Table : Custom Partition Table CSV
-        CSV file : partitions.csv
-    configUSE_TRACE_FACILITY : checked
-    configGENERATE_RUN_TIME_STATS : checked
-
-* MOTOR OUTPUT = 70-90rpm
-* ESP-IDF components and tools paths depend on installation location
-*
-******** TODO ********
-- Operation time
-- Rotary encoder implementation
-
-* Change Log
-Date        CODE    DATA    Description
-2026.       2029    2029    Chg. 3ms soft timer -> espTimer/ Add: ota, data monitor. Chg: TVector6d
-2026.04.07  2028    2022    Add: WiFi AP Ch. randomize
-2026.03.31  1027    2021    Add: BACK cmd, SV EN Cont. heapless buffer
-2026.03.20  1025    2021    Move: GPIO definitions from servo.c to userdefine.h
-2026.03.01  1024    2021    Add: IMU data API, dbg. calibration
-2026.02.09  1023    2021    Add: Auto circling On/Off, restore SLEEP function
-2026.01.20  1022    2021    Add: Speed buttons to control UI, add only_data
-2026.01.17  1021    1021    Add: Auto circling
-2026.01.11  1020    1020    The 1st release
-2025.12.10  1017    1015    Ex1 step: converted to float (smooth side stand movement)
-2025.11.29  1016    1015    Add: Steering slide bar
-2025.11.11  1014    1014    Suppress UI scaling, add adjustment items, update stop sequence
-2025.10.28  1011    1011    Update: Adjustment screen
+Copyright 2026.04.24 M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
 #define PROGVER 1029 // version for program  IDF ver. 5.4.1
 #define DATAVER 1022 // version for saved data in NVS
-#define ESP32BINMARK 0xE9
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -59,22 +23,21 @@ Date        CODE    DATA    Description
 #include <lwip/inet.h>
 #include <lwip/sockets.h>
 
-#include <esp_system.h>
-#include <esp_log.h>
 #include <esp_err.h>
 #include <esp_event.h>
+#include <esp_http_server.h>
+#include <esp_log.h>
 #include <esp_mac.h>
 #include <esp_netif.h>
 #include <esp_sleep.h>
 #include <esp_timer.h>
+#include <esp_ota_ops.h>
+#include <esp_partition.h>
+#include <esp_system.h>
 #include <esp_wifi.h>
-#include <nvs_flash.h>
 #include <nvs.h>
+#include <nvs_flash.h>
 #include <dns_server.h>
-#include <esp_timer.h>
-#include <esp_http_server.h>
-#include "esp_ota_ops.h"
-#include "esp_partition.h"
 
 #include "IMU.h"
 
@@ -210,5 +173,5 @@ void webserver_start();
 char *SysID();
 char *mkcsv();
 esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err);
-void push_data(Tvector6d *new_data);
-const char *get_unread_data();
+void put_data(Tvector6d *new_data);
+const char *get_data();

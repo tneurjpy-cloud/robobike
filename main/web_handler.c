@@ -369,7 +369,6 @@ static esp_err_t monitor_get_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "Serve monitor");
     httpd_resp_set_type(req, "text/html; charset=UTF-8");
     httpd_resp_send(req, monitor_start, monitor_len);
-    auto_disable(); // stop automated control
 
     return ESP_OK;
 }
@@ -384,16 +383,12 @@ const httpd_uri_t monitor = {
 static esp_err_t get_acc_handler(httpd_req_t *req)
 {
     // 1. データの取得
-    const char *p = get_unread_data();
+    const char *p = get_data();
 
     // 2. CORS ヘッダーの追加 (これが重要！)
     // これがないと、ブラウザがセキュリティエラーとして通信を遮断します
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-
-    // 3. レスポンス設定
     httpd_resp_set_type(req, "text/csv; charset=UTF-8");
-
-    // 4. 送信
     httpd_resp_send(req, p, HTTPD_RESP_USE_STRLEN);
 
     return ESP_OK;
@@ -481,10 +476,10 @@ esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err)
 /////////////////////////////////////////////////////////////////////////////
 // HTTP GET Handler
 /// @brief  "http://192.168.4.1/"
+static struct in_addr master_ip = {.s_addr = 0};
 extern const char root_start[] asm("_binary_root_html_start");
 extern const char root_end[] asm("_binary_root_html_end");
 extern const int32_t root_len asm("root_html_length");
-static struct in_addr master_ip = {.s_addr = 0};
 esp_err_t root_get_handler(httpd_req_t *req)
 {
     int fd = httpd_req_to_sockfd(req);

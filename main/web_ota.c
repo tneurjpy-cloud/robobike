@@ -1,12 +1,13 @@
 #include "userdefine.h"
 #include <esp_ota_ops.h>
 
+#define ESP32BINMARK 0xE9
+
 static const char *TAG = "web_ota";
 
 extern const char ota_start[] asm("_binary_ota_html_start");
 extern const char ota_end[] asm("_binary_ota_html_end");
 extern const int32_t ota_len asm("ota_html_length");
-
 
 /////////////////////////////////////////////////////////////////////////////
 /// @brief  "http://192.168.4.1/ota"

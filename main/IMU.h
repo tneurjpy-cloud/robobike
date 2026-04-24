@@ -27,9 +27,9 @@ extern float *pyaw_coeff;
 #define GY_YAW (acc.gx)    // left turn is positive
 #define GY_ROLL (acc.gy)   // left tilt is positive
 #define GY_PITCH (acc.gz)  // pitch up is positive
-#define PGY_YAW (pa->gx)   // left turn is positive
-#define PGY_ROLL (pa->gy)  // left tilt is positive
-#define PGY_PITCH (pa->gz) // pitch up is positive
+#define YAW_A gx   // left turn is positive
+#define ROLL_A gy  // left tilt is positive
+#define PITCH_A gz // pitch up is positive
 
 #define GYDIR_YAW (*pyaw_coeff)
 #define GYDIR_ROLL 0.9996f

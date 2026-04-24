@@ -279,7 +279,7 @@ static void ControlTask(void *pvParameters)
 
         gpio_set_level(IO_1, 1); // IR LED ON
         gyroServiceLoop();       // control.c
-        push_data(&acc);
+        put_data(&acc);
         do_ex1_out();
         do_mot_out();
         do_str_cmd_calc();
@@ -289,7 +289,7 @@ static void ControlTask(void *pvParameters)
     }
 }
 
-static void timer_callback(void* arg)
+static void IRAM_ATTR timer_callback(void* arg)
 {
     xTaskNotifyGive(xControlTaskHandle);  // wakeup task
 }
@@ -317,7 +317,7 @@ void servo_init()
     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 1000);
 
     const esp_timer_create_args_t timer_args = { // hardware timer use
-        .callback = &timer_callback,
+        .callback = timer_callback,
         .name = "high_res_delay"
     };
     esp_timer_create(&timer_args, &delay_timer);
