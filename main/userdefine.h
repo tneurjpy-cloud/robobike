@@ -12,7 +12,7 @@ userdefine.h        ROBOBIKE project
     Flash size : 4MB
     Partition Table : Custom Partition Table CSV
         CSV file : partitions.csv
-    configUSE_TRACE_FACILITY : chaecked
+    configUSE_TRACE_FACILITY : checked
     configGENERATE_RUN_TIME_STATS : checked
 
 * MOTOR OUTPUT = 70-90rpm
@@ -24,7 +24,7 @@ userdefine.h        ROBOBIKE project
 
 * Change Log
 Date        CODE    DATA    Description
-2026.       2029    2029    Add: ota, data monitor. Chg: TVector6d
+2026.       2029    2029    Chg. 3ms soft timer -> espTimer/ Add: ota, data monitor. Chg: TVector6d
 2026.04.07  2028    2022    Add: WiFi AP Ch. randomize
 2026.03.31  1027    2021    Add: BACK cmd, SV EN Cont. heapless buffer
 2026.03.20  1025    2021    Move: GPIO definitions from servo.c to userdefine.h
@@ -72,6 +72,8 @@ Date        CODE    DATA    Description
 #include <nvs.h>
 #include <dns_server.h>
 #include <esp_ota_ops.h>
+#include <esp_timer.h>
+
 
 #include "IMU.h"
 
@@ -95,8 +97,8 @@ Date        CODE    DATA    Description
 #define SERVO_NEUTRAL_DUTY (1500.0f)       // 0deg 1500us
 #define STR_ADJ_MIN (-20)                  //
 #define STR_ADJ_MAX (20)                   //
-#define STR_CMD_SPD_P (40.0f / SERVO_FREQ) // deg/s positive
-#define STR_CMD_SPD_N (25.0f / SERVO_FREQ) // deg/s negative
+#define STR_CMD_SPD_P (50.0f / SERVO_FREQ) // deg/s positive
+#define STR_CMD_SPD_N (30.0f / SERVO_FREQ) // deg/s negative
 #define STR_SLIDER_MAX 100.0f              // +-100
 #define STR_GA_MAX 0.200f                  //
 #define STR_GA_MIN 0.001f                  //

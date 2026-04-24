@@ -58,14 +58,14 @@
             background-color: #fd7878;
             width: 28%;
             height: 75px;
-            margin-top: 30px;
+            margin-top: 20px;
         }
 
         .btn-bk {
             background-color: #81abff;
             width: 28%;
             height: 50px;
-            margin-top: 30px;
+            margin-top: 10px;
         }
 
         button:active {
@@ -103,6 +103,11 @@
 
 <body>
     <h2>ROBOBIKE CONTROL</h2>
+    <div style="font-size: 12px; text-align: center;">
+        <span style="margin-top: 0px; "margin-bottom: 0px; color: black;">PROGVER</span>
+        <span id="prog_ver">---</span>
+        <br>
+    </div>
 
     <div class="button-container">
         <button class="btn-lr" ontouchstart="startCommand('bt_L')" ontouchend="cancelCommand()">←<br>LEFT</button>
@@ -168,6 +173,8 @@
             // 文字列ではなく配列が渡されることを想定
             if (!dataArray || dataArray[CSV_IDX.HEADER] !== 'b') return;
 
+            if (document.getElementById('prog_ver'))
+                document.getElementById('prog_ver').innerText = data[CSV_IDX.PROG_VER];
             if (document.getElementById('mot_spd')) {
                 document.getElementById('mot_spd').innerText = dataArray[CSV_IDX.MOT_SPD];
             }
@@ -204,8 +211,8 @@
                         return;
                     }
 
-                    // mot_spd を更新
                     if (data[CSV_IDX.MOT_SPD] !== undefined) {
+                        document.getElementById('prog_ver').innerText = data[CSV_IDX.PROG_VER];
                         document.getElementById('mot_spd').innerText = data[CSV_IDX.MOT_SPD];
                     }
 

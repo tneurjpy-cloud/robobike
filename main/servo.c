@@ -14,6 +14,7 @@ ISRの極小化: 割り込みスタックやリエントラント性の問題を
 static const char TAG[] = "servo";
 
 #define USEC2LEDCDUTY(x) ((x) * 16384 / (1000000 / SERVO_FREQ))
+#define DELAY_TIME_USEC 3600
 
 float str_cmd0; // deg +-90.0f
 float str_cmd1; // deg
@@ -332,8 +333,8 @@ void auto_disable()
 }
 
 //// STR servo PWM Lo->Hi edge trigger interrupt ////////////////////////////
-static TimerHandle_t delay_timer;
 TaskHandle_t xControlTaskHandle = NULL;
+esp_timer_handle_t delay_timer;
 
 static void ControlTask(void *pvParameters)
 {
@@ -342,10 +343,10 @@ static void ControlTask(void *pvParameters)
     acc_offset = saved.acc_offset;
     for (;;)
     {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // 割り込み通知を待つ
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for interrupt
 
         gpio_set_level(IO_1, 1); // IR LED ON
-        gyroServiceLoop();
+        gyroServiceLoop();       // control.c
         push_data(&acc);
         do_ex1_out();
         do_mot_out();
@@ -356,20 +357,16 @@ static void ControlTask(void *pvParameters)
     }
 }
 
-//// 3.75msec(meas) delay from strPulse ISR trigger
-static void timer_callback(TimerHandle_t xTimer)
+static void timer_callback(void* arg)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    xTaskNotifyGive(xControlTaskHandle);  // wakeup task
 }
 
 static void IRAM_ATTR gpio_str_isr_handler(void *arg)
 {
-    xTimerStartFromISR(delay_timer, NULL);
+    esp_timer_start_once(delay_timer, DELAY_TIME_USEC);  // in usec
 }
 
-#define MSEC_DELAY_LOOP (1000 / SERVO_FREQ - 1)
 void servo_init()
 {
     extern void control_init();
@@ -387,13 +384,11 @@ void servo_init()
     set_mot_duty(0, 1000);
     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 1000);
 
-    delay_timer = xTimerCreate(
-        "DelayTimer",                   // name
-        pdMS_TO_TICKS(MSEC_DELAY_LOOP), // one-shot time
-        pdFALSE,                        // No auto reload
-        NULL,                           // ID
-        timer_callback                  // Call back function
-    );
+    const esp_timer_create_args_t timer_args = { // hardware timer use
+        .callback = &timer_callback,
+        .name = "high_res_delay"
+    };
+    esp_timer_create(&timer_args, &delay_timer);
 
     xTaskCreate(ControlTask, "ControlTask", 2048, NULL, configMAX_PRIORITIES - 1, &xControlTaskHandle);
     gpio_config_t io_conf = {

@@ -1,170 +1,270 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <title>ROBOBIKE Monitor</title>
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: sans-serif; background: #1a1a1a; color: #eee; }
-        .wrapper { display: flex; flex-direction: column; height: 100vh; padding: 5px; box-sizing: border-box; }
-        .top-bar { display: flex; align-items: center; gap: 10px; padding: 5px 10px; background: #333; border-radius: 4px; margin-bottom: 5px; }
-        .data-strip { display: flex; flex-grow: 1; gap: 5px; display: flex; align-items: center; }
-        .val-box { background: #444; padding: 2px 8px; border-radius: 3px; display: flex; gap: 5px; align-items: center; min-width: 85px; border-left: 3px solid #666; }
-        .val-box label { font-size: 0.7rem; color: #aaa; font-weight: bold; }
-        .val-box span { font-family: monospace; font-size: 1rem; color: #fff; }
-        #status { font-size: 0.7rem; color: #ffcc00; min-width: 80px; text-align: center; }
-        .btn-group { display: flex; gap: 5px; }
-        button { padding: 5px 15px; font-size: 0.8rem; cursor: pointer; border: none; border-radius: 3px; font-weight: bold; color: white; background: #555; }
-        #pauseBtn { background: #007bff; }
-        #saveBtn { background: #28a745; }
-        #saveBtn:disabled { background: #444; color: #777; }
-        .chart-container { flex-grow: 1; background: #000; border-radius: 4px; overflow: hidden; position: relative; }
-        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+            background: #1a1a1a;
+            color: #eee;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 10px;
+            background: #333;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+
+        .data-strip {
+            display: flex;
+            flex-grow: 1;
+            gap: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        .val-box {
+            background: #444;
+            padding: 2px 8px;
+            border-radius: 3px;
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            min-width: 85px;
+            border-left: 3px solid #666;
+        }
+
+        .val-box label {
+            font-size: 0.7rem;
+            color: #aaa;
+            font-weight: bold;
+        }
+
+        .val-box span {
+            font-family: monospace;
+            font-size: 1rem;
+            color: #fff;
+        }
+
+        #status {
+            font-size: 0.7rem;
+            color: #ffcc00;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 5px;
+        }
+
+        button {
+            padding: 5px 15px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            font-weight: bold;
+            color: white;
+            background: #555;
+        }
+
+        #pauseBtn {
+            background: #007bff;
+        }
+
+        #saveBtn {
+            background: #28a745;
+        }
+
+        #saveBtn:disabled {
+            background: #444;
+            color: #777;
+        }
+
+        .chart-container {
+            flex-grow: 1;
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
     </style>
 </head>
+
 <body>
 
-<div class="wrapper">
-    <div class="top-bar">
-        <div class="data-strip">
-            <div class="val-box" style="border-color:red"><label>DRV</label><span id="v0">---</span></div>
-            <div class="val-box" style="border-color:blue"><label>STR</label><span id="v1">---</span></div>
-            <div class="val-box" style="border-color:green"><label>STD</label><span id="v2">---</span></div>
-            <div class="val-box" style="border-color:orange"><label>AX</label><span id="v3">---</span></div>
-            <div class="val-box" style="border-color:purple"><label>AY</label><span id="v4">---</span></div>
-            <div class="val-box" style="border-color:teal"><label>AZ</label><span id="v5">---</span></div>
+    <div class="wrapper">
+        <div class="top-bar">
+            <div class="data-strip">
+                <div class="val-box" style="border-color:red"><label>DRV</label><span id="v0">---</span></div>
+                <div class="val-box" style="border-color:blue"><label>STR</label><span id="v1">---</span></div>
+                <div class="val-box" style="border-color:green"><label>STD</label><span id="v2">---</span></div>
+                <div class="val-box" style="border-color:orange"><label>AX</label><span id="v3">---</span></div>
+                <div class="val-box" style="border-color:purple"><label>AY</label><span id="v4">---</span></div>
+                <div class="val-box" style="border-color:teal"><label>AZ</label><span id="v5">---</span></div>
+            </div>
+            <div id="status">INIT</div>
+            <div class="btn-group">
+                <button id="pauseBtn">PAUSE</button>
+                <button id="saveBtn" disabled>SAVE</button>
+            </div>
         </div>
-        <div id="status">INIT</div>
-        <div class="btn-group">
-            <button id="pauseBtn">PAUSE</button>
-            <button id="saveBtn" disabled>SAVE</button>
+        <div class="chart-container" id="container">
+            <canvas id="graphCanvas"></canvas>
         </div>
     </div>
-    <div class="chart-container" id="container">
-        <canvas id="graphCanvas"></canvas>
-    </div>
-</div>
 
-<script>
-    // --- 変数管理 ---
-    let isPaused = false;
-    let dataLog = [];
-    const MAX_POINTS = 200;
-    const history = Array.from({length: 6}, () => Array(MAX_POINTS).fill(0));
-    const colors = ['#ff4444', '#4444ff', '#44ff44', '#ffaa00', '#ff00ff', '#00ffff'];
+    <script>
+        // --- 変数管理 ---
+        let isPaused = false;
+        let dataLog = [];
+        const MAX_POINTS = 200;
+        const history = Array.from({ length: 6 }, () => Array(MAX_POINTS).fill(0));
+        const colors = ['#ff4444', '#4444ff', '#44ff44', '#ffaa00', '#ff00ff', '#00ffff'];
 
-    const canvas = document.getElementById('graphCanvas');
-    const ctx = canvas.getContext('2d');
-    const statusEl = document.getElementById('status');
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
 
-    // --- レイアウト調整 ---
-    function resize() {
-        const container = document.getElementById('container');
-        if (container) {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-        }
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // --- 描画関数 ---
-    function draw() {
-        const w = canvas.width;
-        const h = canvas.height;
-        const midY = h / 2;
-
-        ctx.fillStyle = "#000";
-        ctx.fillRect(0, 0, w, h);
-
-        // 横グリッド
-        ctx.strokeStyle = "#222";
-        ctx.beginPath();
-        for(let i=1; i<10; i++) {
-            let y = (h/10)*i;
-            ctx.moveTo(0, y); ctx.lineTo(w, y);
-        }
-        ctx.stroke();
-
-        // センターライン
-        ctx.strokeStyle = "#444";
-        ctx.beginPath();
-        ctx.moveTo(0, midY); ctx.lineTo(w, midY);
-        ctx.stroke();
-
-        // データ線
-        for (let d = 0; d < 6; d++) {
-            ctx.strokeStyle = colors[d];
-            ctx.lineWidth = d < 3 ? 2 : 1;
-            ctx.beginPath();
-            for (let i = 0; i < MAX_POINTS; i++) {
-                const x = (w / (MAX_POINTS - 1)) * i;
-                const scale = d < 3 ? (h / 240) : (h / 20); // サーボ範囲広め、Acc感度高め
-                const y = midY - (history[d][i] * scale);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        // --- レイアウト調整 ---
+        function resize() {
+            const container = document.getElementById('container');
+            if (container) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
             }
-            ctx.stroke();
         }
-    }
+        window.addEventListener('resize', resize);
+        resize();
 
-    // --- メイン処理 ---
-    async function update() {
-        if (isPaused) return;
+        // --- 描画関数（修正版） ---
+        function draw() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const midY = h / 2;
 
-        try {
-            // これまで通り /get_acc で取得
-            const res = await fetch('/get_acc');
-            const text = await res.text();
-            
-            // データ分割
-            const parts = text.trim().split(',');
-            // 'a' があってもなくても数値だけ取り出す
-            const vals = parts.filter(p => !isNaN(parseFloat(p))).map(p => parseFloat(p));
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, w, h);
 
-            if (vals.length >= 6) {
-                // 履歴にプッシュ
-                for(let i=0; i<6; i++) {
-                    history[i].shift();
-                    history[i].push(vals[i]);
-                    // 上部パネル表示
-                    const el = document.getElementById('v' + i);
-                    if (el) el.innerText = vals[i].toFixed(2);
+            // グリッド描画（省略：元のコードのままでOK）
+
+            for (let d = 0; d < 6; d++) {
+                ctx.strokeStyle = colors[d];
+                ctx.lineWidth = d < 3 ? 2 : 1;
+                ctx.beginPath();
+
+                for (let i = 0; i < MAX_POINTS; i++) {
+                    const x = (w / (MAX_POINTS - 1)) * i;
+                    let val = history[d][i];
+                    let y;
+
+                    if (d < 3) {
+                        // DRV, STR, STD 用 (値が大きいので、1500付近を中央にする例)
+                        // 1500を中央、±500の範囲を表示する場合
+                        const offset = 1500;
+                        const range = 1000;
+                        y = midY - ((val - offset) * (h / range));
+                    } else {
+                        // AX, AY, AZ 用 (0付近、感度高め)
+                        const range = 4; // ±2Gの範囲を表示する場合
+                        y = midY - (val * (h / range));
+                    }
+
+                    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
                 }
-                
-                // CSV用ログ
-                dataLog.push([new Date().toLocaleTimeString(), ...vals]);
-                
-                // 描画実行
-                draw();
-                
-                statusEl.innerText = "ONLINE";
-                statusEl.style.color = "#00ff00";
+                ctx.stroke();
             }
-        } catch (e) {
-            // 通信エラーではなく「コード内のエラー」の場合もここに来ます
-            statusEl.innerText = "ERROR";
-            statusEl.style.color = "#ff4444";
         }
-    }
+        
+        // --- メイン処理 ---
+        async function update() {
+            if (isPaused) return;
 
-    // --- ボタン ---
-    document.getElementById('pauseBtn').onclick = () => {
-        isPaused = !isPaused;
-        document.getElementById('pauseBtn').innerText = isPaused ? "RESUME" : "PAUSE";
-        document.getElementById('saveBtn').disabled = !isPaused;
-    };
+            try {
+                // これまで通り /get_acc で取得
+                const res = await fetch('/get_acc');
+                const text = await res.text();
 
-    document.getElementById('saveBtn').onclick = () => {
-        if (dataLog.length === 0) return;
-        const csv = "\uFEFFTime,DRV,STR,STD,AX,AY,AZ\n" + dataLog.map(r => r.join(",")).join("\n");
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `robo_${Date.now()}.csv`;
-        a.click();
-    };
+                // データ分割
+                const parts = text.trim().split(',');
+                // 'a' があってもなくても数値だけ取り出す
+                const vals = parts.filter(p => !isNaN(parseFloat(p))).map(p => parseFloat(p));
 
-    // ループ開始
-    setInterval(update, 200);
-</script>
+                if (vals.length >= 6) {
+                    // 履歴にプッシュ
+                    for (let i = 0; i < 6; i++) {
+                        history[i].shift();
+                        history[i].push(vals[i]);
+                        // 上部パネル表示
+                        const el = document.getElementById('v' + i);
+                        if (el) el.innerText = vals[i].toFixed(2);
+                    }
+
+                    // CSV用ログ
+                    dataLog.push([new Date().toLocaleTimeString(), ...vals]);
+
+                    // 描画実行
+                    draw();
+
+                    statusEl.innerText = "ONLINE";
+                    statusEl.style.color = "#00ff00";
+                }
+            } catch (e) {
+                // 通信エラーではなく「コード内のエラー」の場合もここに来ます
+                statusEl.innerText = "ERROR";
+                statusEl.style.color = "#ff4444";
+            }
+        }
+
+        // --- ボタン ---
+        document.getElementById('pauseBtn').onclick = () => {
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').innerText = isPaused ? "RESUME" : "PAUSE";
+            document.getElementById('saveBtn').disabled = !isPaused;
+        };
+
+        document.getElementById('saveBtn').onclick = () => {
+            if (dataLog.length === 0) return;
+            const csv = "\uFEFFTime,DRV,STR,STD,AX,AY,AZ\n" + dataLog.map(r => r.join(",")).join("\n");
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `robo_${Date.now()}.csv`;
+            a.click();
+        };
+
+        // ループ開始
+        setInterval(update, 200);
+    </script>
 </body>
+
 </html>

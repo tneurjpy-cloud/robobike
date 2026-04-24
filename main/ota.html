@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
 
 <head>
     <meta charset="utf-8">
@@ -8,7 +8,6 @@
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <style>
         :root {
-            /* ROBOBIKEブランドカラー #207020 に統一 */
             --rb-green: #207020;
             --rb-dark-green: #185a18;
             --bg-light: #f8faf9;
@@ -76,10 +75,8 @@
             border: 1px solid #ffeeba;
         }
 
-        /* アップロードエリアの修正 */
         .upload-area {
             display: flex;
-            /* 中身を縦に並べる */
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -91,9 +88,7 @@
             margin-bottom: 25px;
             transition: all 0.3s ease;
             min-height: 140px;
-            /* 高さを確保 */
             box-sizing: border-box;
-            /* パディングを含めたサイズ計算 */
         }
 
         .upload-area:hover,
@@ -177,7 +172,6 @@
             line-height: 1.5;
         }
 
-        /* デフォルト（PC）ではスマホ警告を隠す */
         .mobile-warning {
             display: none;
             background: #fff5f5;
@@ -190,14 +184,11 @@
             line-height: 1.6;
         }
 
-        /* 画面幅が狭い（スマホなど）の場合の処理 */
         @media (max-width: 600px) {
             .mobile-warning {
                 display: block;
-                /* 警告のみ表示 */
             }
 
-            /* スマホでは不要な操作系とPC用案内をすべて隠す */
             .upload-area,
             .btn-update,
             .pc-notice,
@@ -210,29 +201,28 @@
 
 <body>
     <div class="card">
-        <h2>ROBOBIKE システム更新</h2>
-        <div class="version-info">システム管理用</div>
+        <h2>ROBOBIKE<br>Program Update</h2>
 
         <div class="mobile-warning">
-            ⚠️ このページはパソコンから操作してください。
+            ⚠️ Please operate this page from a PC.
         </div>
 
-        <span class="pc-notice">⚠️ 更新作業は、電源の安定したPCから行ってください。</span>
+        <span class="pc-notice">⚠️ Please perform the update from a PC with a stable power supply.</span>
 
         <label class="upload-area" id="drop-zone">
             <span class="upload-icon">📁</span>
-            <span style="font-size: 14px;">更新ファイルを選択、またはドラッグ</span>
-            <div id="file-name">ファイルが選択されていません</div>
+            <span style="font-size: 14px;">Select or drag the update file here</span>
+            <div id="file-name">No file selected</div>
             <input type="file" id="file-input" accept=".bin">
         </label>
 
-        <button class="btn-update" id="upload-btn" disabled>アップデート開始</button>
+        <button class="btn-update" id="upload-btn" disabled>Start Update</button>
 
         <div class="progress-wrapper" id="progressWrapper">
             <div class="progress-container">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
-            <div id="status">準備完了</div>
+            <div id="status">Ready</div>
         </div>
     </div>
 
@@ -242,7 +232,6 @@
         const uploadBtn = document.getElementById('upload-btn');
         const dropZone = document.getElementById('drop-zone');
 
-        // ファイル選択時の処理
         fileInput.addEventListener('change', () => {
             if (fileInput.files.length > 0) {
                 fileNameDisp.innerText = fileInput.files[0].name;
@@ -250,7 +239,6 @@
             }
         });
 
-        // アップロード処理
         function startUpdate() {
             const status = document.getElementById('status');
             const wrapper = document.getElementById('progressWrapper');
@@ -268,7 +256,7 @@
                 if (e.lengthComputable) {
                     const percent = Math.round((e.loaded / e.total) * 100);
                     progressBar.style.width = percent + "%";
-                    status.innerText = `システム転送中: ${percent}%`;
+                    status.innerText = `Transferring System: ${percent}%`;
                 }
             });
 
@@ -276,38 +264,36 @@
                 if (xhr.status === 200) {
                     status.innerHTML = `
                         <div style="margin-top: 20px; padding: 20px; border: 2px solid ${brandColor}; border-radius: 12px; background-color: #ffffff; text-align: left; line-height: 1.6; color: ${brandColor};">
-                            <strong style="font-size: 1.2em; display: block; margin-bottom: 10px;">✅ アップデート完了！</strong>
+                            <strong style="font-size: 1.2em; display: block; margin-bottom: 10px;">✅ Update Complete!</strong>
                             <div style="color: #333; font-size: 13px;">
-                                ROBOBIKEが正常に更新され、自動で再起動します。<br><br>
-                                1. <strong>このPCとROBOBIKEの接続を切り</strong>、通常のWiFiに戻してください。<br>
-                                2. <strong>スマートフォン</strong>をROBOBIKEのWi-Fiへ接続し、操作画面を開き直してください。
+                                ROBOBIKE has been updated successfully and will restart automatically.<br><br>
+                                1. <strong>Disconnect this PC from ROBOBIKE</strong> and return to your normal Wi-Fi.<br>
+                                2. <strong>Connect your smartphone</strong> to the ROBOBIKE Wi-Fi and reopen the control screen.
                             </div>
                         </div>
                     `;
                     progressBar.style.width = "100%";
                     progressBar.style.backgroundColor = brandColor;
                 } else {
-                    status.innerText = "エラー: 転送に失敗しました (" + xhr.status + ")";
+                    status.innerText = "Error: Transfer failed (" + xhr.status + ")";
                     status.style.color = "#e74c3c";
                     uploadBtn.disabled = false;
                 }
             };
 
             xhr.onerror = function () {
-                status.innerText = "通信エラーが発生しました。接続を確認してください。";
+                status.innerText = "A communication error occurred. Please check your connection.";
                 status.style.color = "#e74c3c";
                 uploadBtn.disabled = false;
             };
 
             xhr.open("POST", "/update");
-            // 生バイナリとして送信 (FormDataを使わない)
             xhr.setRequestHeader("Content-Type", "application/octet-stream");
             xhr.send(file);
         }
 
         uploadBtn.addEventListener('click', startUpdate);
 
-        // ドラッグ&ドロップの演出
         ['dragenter', 'dragover'].forEach(name => {
             dropZone.addEventListener(name, (e) => {
                 e.preventDefault();
