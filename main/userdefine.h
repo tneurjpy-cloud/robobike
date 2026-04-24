@@ -98,7 +98,7 @@ Date        CODE    DATA    Description
 #define STR_ADJ_MIN (-20)                  //
 #define STR_ADJ_MAX (20)                   //
 #define STR_CMD_SPD_P (50.0f / SERVO_FREQ) // deg/s positive
-#define STR_CMD_SPD_N (30.0f / SERVO_FREQ) // deg/s negative
+#define STR_CMD_SPD_N (27.5f / SERVO_FREQ) // deg/s negative
 #define STR_SLIDER_MAX 100.0f              // +-100
 #define STR_GA_MAX 0.200f                  //
 #define STR_GA_MIN 0.001f                  //
@@ -139,13 +139,13 @@ typedef struct
 } TSave;
 
 #define STRMAX 65
-#define STR_STOP 30
+#define STR_STOP 25
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
 #define EX1MAX 60
 #define EX1MIN (-10)
 #define STD_RUN 80
-#define STD_STD_NUT 12 // diff STD. - NUT.
+#define STD_STD_NUT 14 // diff STD. - NUT.
 
 #define LEDHIGH 255
 #define LEDLOW 16

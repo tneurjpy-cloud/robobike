@@ -236,7 +236,7 @@ static esp_err_t command_handler(httpd_req_t *req)
     ELSE_IF_BTEQ("bt_F") // start or go straight
     {
         isControl = true;
-        if (mot_out > 0) // 走行中
+        if (mot_out != 0.0f) // 走行中
         {
             set_str_cmd(0.0f, STR_CMD_SPD_N);
         }
@@ -245,7 +245,7 @@ static esp_err_t command_handler(httpd_req_t *req)
             auto_disable();
             set_led_brightness(LEDHIGH);
             set_str_cmd(0.0f, SERVO_NEUTRAL_DUTY);
-            set_ex1_angle((saved.ang_std_nut + STD_STD_NUT + saved.ang_std_nut * 3) / 4, 1);
+            set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4, 1.0f);
             wait_ex1_angle();
             set_ex1_angle(saved.ang_std_nut, 0.1f);
             wait_ex1_angle();
@@ -262,17 +262,17 @@ static esp_err_t command_handler(httpd_req_t *req)
         {
             if (str_cmd2 != 0.f)
             {
-                set_str_cmd(0.0f, STR_CMD_SPD_N * 2);
+                set_str_cmd(0.0f, STR_CMD_SPD_N * 2.0f);
                 wait_str_angle();
             }
-            set_str_cmd(-STR_STOP, 0.0f);                                       // 左傾を誘発
+            set_str_cmd(-STR_STOP, 10.0f);                                       // 左傾を誘発
             set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, SERVO_NEUTRAL_DUTY); // スタンドを先に出す
             vTaskDelay(pdMS_TO_TICKS(400));
+            wait_str_angle();
             auto_disable();
             set_str_cmd(STR_STOP, 0.0f);
-            set_mot_duty(0.0f, 6.0f);
+            set_mot_duty(0.0f, 4.0f);
             wait_mot_duty();
-            vTaskDelay(pdMS_TO_TICKS(300));
             set_led_brightness(LEDLOW);
         }
         else
