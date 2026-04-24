@@ -202,7 +202,7 @@ static esp_err_t command_handler(httpd_req_t *req)
 {
     char bt_name[64];
     esp_err_t err;
-    bool ret_json = true;
+    bool ret_data = true;
     bool isControl = false;
 
     ESP_LOGI(TAG, "URI: %s", req->uri);
@@ -220,9 +220,9 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
 
     ///////////////////////////////////////////////////////
+    isControl = true;
     IF_BTEQ("stp_all") // return from setup to root
     {
-        isControl = true;
         auto_disable();
         set_mot_duty(0.0f, SERVO_NEUTRAL_DUTY);
         set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, SERVO_NEUTRAL_DUTY);
@@ -231,11 +231,9 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("only_data")
     {
-        isControl = true;
     }
     ELSE_IF_BTEQ("bt_F") // start or go straight
     {
-        isControl = true;
         if (mot_out != 0.0f) // 走行中
         {
             set_str_cmd(0.0f, STR_CMD_SPD_N);
@@ -256,8 +254,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_S") // go straight, tilt left and stop
     {
-        isControl = true;
-
         if (mot_out > 0)
         {
             if (str_cmd2 != 0.f)
@@ -283,12 +279,10 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_L")
     {
-        isControl = true;
         set_str_cmd(-saved.str_turn, STR_CMD_SPD_P);
     }
     ELSE_IF_BTEQ("bt_R")
     {
-        isControl = true;
         set_str_cmd(saved.str_turn, STR_CMD_SPD_P);
     }
     ELSE_IF_BTEQ("bt_Str_S")
@@ -296,7 +290,6 @@ static esp_err_t command_handler(httpd_req_t *req)
         char query_str[64];
         char value_str[64];
 
-        isControl = true;
         err = httpd_req_get_url_query_str(req, query_str, sizeof(query_str));
         err = httpd_query_key_value(query_str, "value", value_str, sizeof(value_str));
         float value = atof(value_str);
@@ -304,7 +297,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_BK") // go backward/stop
     {
-        isControl = true;
         if (mot_out == 0) // 停止中
         {
             set_mot_duty(MOT_SPEED_BACK, 0.0f);
@@ -317,7 +309,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     //////// Parameters tuning in root.html /////////
     ELSE_IF_BTEQ("bt_A_Up_0") // mot speed up
     {
-        isControl = true;
         if (saved.mot_spd < MOTMAX)
             saved.mot_spd++;
         if (mot_out > 0) // 走行中
@@ -327,7 +318,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_A_Dn_0") // mot speed dn
     {
-        isControl = true;
         if (saved.mot_spd > 0)
             saved.mot_spd--;
         if (mot_out > 0) // 走行中
@@ -338,21 +328,18 @@ static esp_err_t command_handler(httpd_req_t *req)
     //////// Parameters tuning in setup.html /////////
     ELSE_IF_BTEQ("bt_A_Up") // mot speed up
     {
-        isControl = true;
         if (saved.mot_spd < MOTMAX)
             saved.mot_spd++;
         set_mot_duty(saved.mot_spd, 0.0f);
     }
     ELSE_IF_BTEQ("bt_A_Dn") // mot speed dn
     {
-        isControl = true;
         if (saved.mot_spd > 0)
             saved.mot_spd--;
         set_mot_duty(saved.mot_spd, 0.0f);
     }
     ELSE_IF_BTEQ("bt_A_L") // str nut >> L
     {
-        isControl = true;
         if (saved.str0 > STR_ADJ_MIN)
             saved.str0--;
         set_str_cmd(0.0f, 0.0f); // + = right turn
@@ -360,7 +347,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_A_R") // str nut >> R
     {
-        isControl = true;
         if (saved.str0 < STR_ADJ_MAX)
             saved.str0++;
         set_str_cmd(0.0f, 0.0f); // + = right turn
@@ -368,59 +354,47 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_S_Up") // str gain
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.gain_str < STR_GA_MAX)
             saved.gain_str = ((int)(saved.gain_str * 1000) + 1) / 1000.f;
     }
     ELSE_IF_BTEQ("bt_S_Dn") //
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.gain_str > STR_GA_MIN)
             saved.gain_str = ((int)(saved.gain_str * 1000) - 1) / 1000.f;
     }
     ELSE_IF_BTEQ("bt_R_Up") // roll gain
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.gain_w_roll < ROLL_GA_MAX)
             saved.gain_w_roll = ((int)(saved.gain_w_roll * 1) + 1);
     }
     ELSE_IF_BTEQ("bt_R_Dn") //
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.gain_w_roll > ROLL_GA_MIN)
             saved.gain_w_roll = ((int)(saved.gain_w_roll * 1) - 1);
     }
     ELSE_IF_BTEQ("bt_D_St")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
     }
     ELSE_IF_BTEQ("bt_D_Up") // diff gain
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.gain_str_diff < DIFF_GA_MAX)
             saved.gain_str_diff = ((int)(saved.gain_str_diff * 1000) + 1) / 1000.f;
     }
     ELSE_IF_BTEQ("bt_D_Dn") //
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.gain_str_diff > DIFF_GA_MIN)
             saved.gain_str_diff = ((int)(saved.gain_str_diff * 1000) - 1) / 1000.f;
     }
     ELSE_IF_BTEQ("bt_Std_nutAuto") // Side stand adjustment
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
-
-        // 徐々にスタンドを押し下げつつ、Accelarationデータを取り込み、垂直を過ぎるまで
-        // 相関ラインを算出して、LATERAL_G==0となる角度を記憶
-
         set_ex1_angle(-10.0f, 0.1f);
         while (ex1_out > ex1_cmd)
         {
@@ -447,7 +421,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_Std_nutUp")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.ang_std_nut < EX1MAX)
             saved.ang_std_nut += 1;
@@ -455,7 +428,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_Std_nutDn")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.ang_std_nut > EX1MIN)
             saved.ang_std_nut -= 1;
@@ -463,33 +435,28 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_str_turnUp")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.str_turn < STRMAX)
             saved.str_turn += 1;
     }
     ELSE_IF_BTEQ("bt_str_turnDn")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.str_turn > (STRMAX / 10))
             saved.str_turn -= 1;
     }
     ELSE_IF_BTEQ("IR_ON")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         autoCircling = true;
     }
     ELSE_IF_BTEQ("IR_OFF")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         autoCircling = false;
     }
     ELSE_IF_BTEQ("bt_yaw_coeffUp")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.yaw_coeff < GYDIR_YAW_MAX)
             saved.yaw_coeff += 0.001f;
@@ -498,7 +465,6 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_yaw_coeffDn")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         if (saved.yaw_coeff > GYDIR_YAW_MIN)
             saved.yaw_coeff -= 0.001f;
@@ -507,13 +473,13 @@ static esp_err_t command_handler(httpd_req_t *req)
     }
     ELSE_IF_BTEQ("bt_Ld_Default")
     {
-        isControl = true;
         set_mot_duty(0.0f, 0.0f);
         saved = savedefault;
     }
     else
     {
-        ret_json = false;
+        isControl = false;
+        ret_data = false;
     }
 
     //////// Control running /////////
@@ -521,7 +487,7 @@ static esp_err_t command_handler(httpd_req_t *req)
         userLastControlTime = millis;
 
     httpd_resp_set_type(req, "text/plain");
-    if (ret_json)
+    if (ret_data)
     { // YOU MUST DO httpd_resp_send()
         httpd_resp_send(req, mkcsv(), HTTPD_RESP_USE_STRLEN);
     }
