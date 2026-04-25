@@ -5,6 +5,69 @@ static const char *TAG = "web_handler";
 #define IF_BTEQ(str) if (strcmp(bt_name, str) == 0)
 #define ELSE_IF_BTEQ(str) else if (strcmp(bt_name, str) == 0)
 
+// static file server
+typedef struct
+{
+    const char *start;
+    const char *end;
+    const char *type;
+    bool disable_auto;
+} file_server_data_t;
+
+/////////////////////////////////////////////////////////////////////////////
+/// @brief  "http://192.168.4.1/file"
+static esp_err_t common_file_get_handler(httpd_req_t *req)
+{
+    file_server_data_t *data = (file_server_data_t *)req->user_ctx;
+    if (strcmp(req->uri, "/setup") == 0)
+        saved.isChecked = true;
+    if (data->disable_auto)
+        auto_disable();
+
+    httpd_resp_set_type(req, data->type);
+    return httpd_resp_send(req, data->start, data->end - data->start);
+}
+
+extern const char setup_start[] asm("_binary_setup_html_start");
+extern const char setup_end[] asm("_binary_setup_html_end");
+static const file_server_data_t d_setup = {
+    setup_start, setup_end, "text/html; charset=UTF-8", true};
+const httpd_uri_t setup = {
+    .uri = "/setup",
+    .method = HTTP_GET,
+    .handler = common_file_get_handler,
+    .user_ctx = (void *)&d_setup};
+
+extern const char setup2_start[] asm("_binary_setup2_html_start");
+extern const char setup2_end[] asm("_binary_setup2_html_end");
+static const file_server_data_t d_setup2 = {
+    setup2_start, setup2_end, "text/html; charset=UTF-8", true};
+const httpd_uri_t setup2 = {
+    .uri = "/setup2",
+    .method = HTTP_GET,
+    .handler = common_file_get_handler,
+    .user_ctx = (void *)&d_setup2};
+
+extern const char monitor_start[] asm("_binary_monitor_html_start");
+extern const char monitor_end[] asm("_binary_monitor_html_end");
+static const file_server_data_t d_monitor = {
+    monitor_start, monitor_end, "text/html; charset=UTF-8", false};
+const httpd_uri_t monitor = {
+    .uri = "/monitor",
+    .method = HTTP_GET,
+    .handler = common_file_get_handler,
+    .user_ctx = (void *)&d_monitor};
+
+extern const char favicon_start[] asm("_binary_favicon_ico_start");
+extern const char favicon_end[] asm("_binary_favicon_ico_end");
+static const file_server_data_t d_favicon = {
+    favicon_start, favicon_end, "image/x-icon", false};
+const httpd_uri_t favicon = {
+    .uri = "/favicon.ico",
+    .method = HTTP_ANY,
+    .handler = common_file_get_handler,
+    .user_ctx = (void *)&d_favicon};
+
 /// TASK "httpd" ///////////////////////////////////////////
 /// @brief  "http://192.168.4.1/command?button=bt_S"
 static esp_err_t command_handler(httpd_req_t *req)
@@ -70,7 +133,7 @@ static esp_err_t command_handler(httpd_req_t *req)
                 set_str_cmd(0.0f, STR_CMD_SPD_N * 2.0f);
                 wait_str_angle();
             }
-            set_str_cmd(-STR_STOP, 10.0f);                                       // 左傾を誘発
+            set_str_cmd(-STR_STOP, 10.0f);                                      // 左傾を誘発
             set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, SERVO_NEUTRAL_DUTY); // スタンドを先に出す
             vTaskDelay(pdMS_TO_TICKS(400));
             wait_str_angle();
@@ -313,72 +376,6 @@ const httpd_uri_t command = {
     .handler = command_handler};
 
 /////////////////////////////////////////////////////////////////////////////
-/// @brief  "http://192.168.4.1/setup"
-extern const char setup_start[] asm("_binary_setup_html_start");
-extern const char setup_end[] asm("_binary_setup_html_end");
-extern const int32_t setup_len asm("setup_html_length");
-static esp_err_t setup_get_handler(httpd_req_t *req)
-{
-    // const uint32_t L = setup_end - setup_start;
-
-    ESP_LOGI(TAG, "Serve setup");
-    saved.isChecked = true;
-    httpd_resp_set_type(req, "text/html; charset=UTF-8");
-    httpd_resp_send(req, setup_start, setup_len);
-    auto_disable(); // stop automated control
-
-    return ESP_OK;
-}
-
-const httpd_uri_t setup = {
-    .uri = "/setup",
-    .method = HTTP_GET,
-    .handler = setup_get_handler};
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief  "http://192.168.4.1/setup2"
-extern const char setup2_start[] asm("_binary_setup2_html_start");
-extern const char setup2_end[] asm("_binary_setup2_html_end");
-extern const int32_t setup2_len asm("setup2_html_length");
-static esp_err_t setup2_get_handler(httpd_req_t *req)
-{
-    // const uint32_t L = setup_end - setup_start;
-
-    ESP_LOGI(TAG, "Serve setup2");
-    httpd_resp_set_type(req, "text/html; charset=UTF-8");
-    httpd_resp_send(req, setup2_start, setup2_len);
-    auto_disable(); // stop automated control
-
-    return ESP_OK;
-}
-
-const httpd_uri_t setup2 = {
-    .uri = "/setup2",
-    .method = HTTP_GET,
-    .handler = setup2_get_handler};
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief  "http://192.168.4.1/monitor"
-extern const char monitor_start[] asm("_binary_monitor_html_start");
-extern const char monitor_end[] asm("_binary_monitor_html_end");
-extern const int32_t monitor_len asm("monitor_html_length");
-static esp_err_t monitor_get_handler(httpd_req_t *req)
-{
-    // const uint32_t L = setup_end - setup_start;
-
-    ESP_LOGI(TAG, "Serve monitor");
-    httpd_resp_set_type(req, "text/html; charset=UTF-8");
-    httpd_resp_send(req, monitor_start, monitor_len);
-
-    return ESP_OK;
-}
-
-const httpd_uri_t monitor = {
-    .uri = "/monitor",
-    .method = HTTP_GET,
-    .handler = monitor_get_handler};
-
-/////////////////////////////////////////////////////////////////////////////
 /// @brief  "http://192.168.4.1/get_acc"
 static esp_err_t get_acc_handler(httpd_req_t *req)
 {
@@ -399,25 +396,6 @@ const httpd_uri_t get_acc = {
     .method = HTTP_GET,
     .handler = get_acc_handler,
     .user_ctx = NULL};
-
-/////////////////////////////////////////////////////////////////////////////
-/// @brief  "http://192.168.4.1/favicon.ico"
-extern const char favicon_start[] asm("_binary_favicon_ico_start");
-extern const char favicon_end[] asm("_binary_favicon_ico_end");
-extern const int32_t favicon_len asm("favicon_ico_length");
-static esp_err_t favicon_get_handler(httpd_req_t *req)
-{
-    ESP_LOGI(TAG, "Serve setup");
-    httpd_resp_set_type(req, "image/x-icon");
-    httpd_resp_send(req, favicon_start, favicon_len);
-
-    return ESP_OK;
-}
-
-const httpd_uri_t favicon = {
-    .uri = "/favicon.ico",
-    .method = HTTP_ANY,
-    .handler = favicon_get_handler};
 
 /////////////////////////////////////////////////////////////////////////////
 // captive portal response
@@ -571,7 +549,7 @@ esp_err_t root_get_handler(httpd_req_t *req)
     else
     {
         ESP_LOGI(TAG, "Serving GUEST page");
-        return httpd_resp_send(req, monitor_start, monitor_len);
+        return httpd_resp_send(req, monitor_start, monitor_end - monitor_start);
     }
 }
 
