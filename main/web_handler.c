@@ -28,45 +28,54 @@ static esp_err_t common_file_get_handler(httpd_req_t *req)
     return httpd_resp_send(req, data->start, data->end - data->start);
 }
 
+// setup ////////////////////////////////////////////////////////////////
 extern const char setup_start[] asm("_binary_setup_html_start");
 extern const char setup_end[] asm("_binary_setup_html_end");
 static const file_server_data_t d_setup = {
     setup_start, setup_end, "text/html; charset=UTF-8", true};
-const httpd_uri_t setup = {
+static const httpd_uri_t setup = {
     .uri = "/setup",
     .method = HTTP_GET,
     .handler = common_file_get_handler,
     .user_ctx = (void *)&d_setup};
 
+// setup2 ////////////////////////////////////////////////////////////////
 extern const char setup2_start[] asm("_binary_setup2_html_start");
 extern const char setup2_end[] asm("_binary_setup2_html_end");
 static const file_server_data_t d_setup2 = {
     setup2_start, setup2_end, "text/html; charset=UTF-8", true};
-const httpd_uri_t setup2 = {
+static const httpd_uri_t setup2 = {
     .uri = "/setup2",
     .method = HTTP_GET,
     .handler = common_file_get_handler,
     .user_ctx = (void *)&d_setup2};
 
+// monitor ////////////////////////////////////////////////////////////////
 extern const char monitor_start[] asm("_binary_monitor_html_start");
 extern const char monitor_end[] asm("_binary_monitor_html_end");
 static const file_server_data_t d_monitor = {
     monitor_start, monitor_end, "text/html; charset=UTF-8", false};
-const httpd_uri_t monitor = {
+static const httpd_uri_t monitor = {
     .uri = "/monitor",
     .method = HTTP_GET,
     .handler = common_file_get_handler,
     .user_ctx = (void *)&d_monitor};
 
+// favicon ////////////////////////////////////////////////////////////////
 extern const char favicon_start[] asm("_binary_favicon_ico_start");
 extern const char favicon_end[] asm("_binary_favicon_ico_end");
 static const file_server_data_t d_favicon = {
     favicon_start, favicon_end, "image/x-icon", false};
-const httpd_uri_t favicon = {
+static const httpd_uri_t favicon = {
     .uri = "/favicon.ico",
     .method = HTTP_ANY,
     .handler = common_file_get_handler,
     .user_ctx = (void *)&d_favicon};
+
+const httpd_uri_t file_servers[] = {
+    setup, setup2, monitor, favicon
+};
+const size_t file_servers_count = sizeof(file_servers) / sizeof(file_servers[0]);
 
 /// TASK "httpd" ///////////////////////////////////////////
 /// @brief  "http://192.168.4.1/command?button=bt_S"

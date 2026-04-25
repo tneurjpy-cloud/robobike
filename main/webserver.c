@@ -4,9 +4,7 @@ static const char *TAG = "websrv";
 
 static httpd_handle_t http_server = NULL;
 
-
 /////////////////////////////////////////////////////////////////////////////
-/// @brief ////////////////////////////////////////////////////////////////
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
@@ -90,6 +88,9 @@ static void dhcp_set_captiveportal_url(void)
 /////////////////////////////////////////////////////////////////////////////
 void webserver_start()
 {
+    extern const httpd_uri_t file_servers[];
+    extern size_t file_servers_count;
+
     esp_log_level_set(TAG, ESP_LOG_INFO);
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -113,17 +114,17 @@ void webserver_start()
     {
         httpd_register_uri_handler(http_server, &root);
         httpd_register_uri_handler(http_server, &command);
-        httpd_register_uri_handler(http_server, &setup);
-        httpd_register_uri_handler(http_server, &setup2);
-        httpd_register_uri_handler(http_server, &monitor);
         httpd_register_uri_handler(http_server, &get_acc);
         httpd_register_uri_handler(http_server, &ota);
         httpd_register_uri_handler(http_server, &ota_update);
-        httpd_register_uri_handler(http_server, &favicon);
         httpd_register_uri_handler(http_server, &generate_204);
         httpd_register_uri_handler(http_server, &hotspot);
         httpd_register_uri_handler(http_server, &ncsi);
         httpd_register_err_handler(http_server, HTTPD_404_NOT_FOUND, http_404_error_handler);
+        for (int i = 0; i < file_servers_count; i++)
+        {
+            httpd_register_uri_handler(http_server, &file_servers[i]);
+        }
     }
     else
     {
