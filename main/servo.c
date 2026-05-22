@@ -32,9 +32,9 @@ const TSave savedefault = {
     DATAVER,                                      // (int) data format version
     0,                                            // (uint32_t) operation time in sec
     false,                                        // isChecked
-    0.030f,                                       // gain_str;
-    0.020f,                                       // gain_str_diff
-    24.0f,                                        // gain_w_roll;
+    0.035f,                                       // gain_str;
+    0.045f,                                       // gain_str_diff
+    12.0f,                                        // gain_w_roll;
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
     {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
     0.980f,                                       // str_diff_alph
@@ -43,7 +43,7 @@ const TSave savedefault = {
     20,                                           // (int) stand for start
     0.0f,                                         // reserved
     0.012f,                                       // yaw‑rate feedback coefficient
-    30,                                           // (int) steering_turn
+    40,                                           // (int) steering_turn
     0xFFFFFFFF                                    // (uint32_t) CRC
 };
 

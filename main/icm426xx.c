@@ -103,10 +103,10 @@ void icm426xx_init()
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
 
-    cfg = 0x23; // GYRO_UI_FS_SEL=500dps, GYRO_ODR=16KHz
+    cfg = 0x45; // GYRO_UI_FS_SEL=500dps(0100), GYRO_ODR=1.6KHz(0101)
     i2c_write(GYRO_CONFIG0, &cfg, 1);
 
-    cfg = 0x63; // 0b01100101
+    cfg = 0x65; // 0b01100101
     i2c_write(ACCEL_CONFIG0, &cfg, 1);
 
     cfg = ACC_LOPASS_NON; // bypass Lo-pass

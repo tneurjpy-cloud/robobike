@@ -7,7 +7,7 @@ Copyright 2026.05.06 M.Tanaami
 #pragma once
 
 #define PROGVER 1031 // version for program
-#define DATAVER 1022 // version for saved data in NVS
+#define DATAVER 1031 // version for saved data in NVS
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -71,8 +71,8 @@ Copyright 2026.05.06 M.Tanaami
 #define SERVO_NEUTRAL_DUTY (1500.0f)   // 0deg 1500us
 #define STR_ADJ_MIN (-20)              //
 #define STR_ADJ_MAX (20)               //
-#define STR_CMD_SPD_P (45.0f / SV_FRQ) // deg/s positive
-#define STR_CMD_SPD_N (25.0f / SV_FRQ) // deg/s negative
+#define STR_CMD_SPD_P (25.0f / SV_FRQ) // deg/s positive
+#define STR_CMD_SPD_N (17.5f / SV_FRQ) // deg/s negative
 #define STR_SLIDER_MAX 100.0f          // +-100
 #define STR_GA_MAX 0.200f              //
 #define STR_GA_MIN 0.001f              //
