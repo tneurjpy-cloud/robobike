@@ -65,7 +65,7 @@ static int index_r = 0; // 最後に読み出した位置
 void auto_disable();
 
 ////////////////////////////////////////////////////////
-/// called in 5msec loop
+/// called in Control task for data logging
 void put_control_data()
 {
     Tlogvector *p;
@@ -88,6 +88,7 @@ void put_control_data()
 a,3715500,-100.000,-90.000,-90.000,-111.267,-129.328,-134.046
 64bytes/line * 200Hz*1sec=12800bytes
 */
+// call this in web server task to get data for monitor
 char *get_control_data()
 {
     static char buf[CTL_DATA_BUFSIZE];
@@ -131,7 +132,7 @@ char *get_control_data()
 }
 
 ///////////////////////////////////////////////////////////////////
-// TASK of Control commands
+// TASK of Control commands of long sequences
 ///////////////////////////////////////////////////////////////////
 static TaskHandle_t xcmdProc_TaskHandle = NULL;
 static QueueHandle_t control_queue = NULL;

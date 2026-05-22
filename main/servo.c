@@ -6,7 +6,7 @@
 static const char TAG[] = "servo";
 
 #define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ))
-#define DELAYTIME_RISING 800 // us, Delay time for sync_timer alarm to PWM rising edge
+#define DELAYTIME_RISING 600 // us, Delay time for sync_timer alarm to PWM rising edge
 
 float str_cmd0;   // deg +-90.0f  +: Left turn
 float str_cmd1;   // deg
@@ -37,7 +37,7 @@ const TSave savedefault = {
     12.0f,                                        // gain_w_roll;
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
     {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
-    0.980f,                                       // str_diff_alph
+    0.950f,                                       // str_diff_alph
     0,                                            // (int) steering angle neutral R= +deg
     60,                                           // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
     20,                                           // (int) stand for start
@@ -62,7 +62,7 @@ static ledc_channel_config_t svch_mot = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_DRV, 
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY((int)(DELAYTIME_RISING * 2.5f))};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1000)};
 
 static ledc_channel_config_t svch_str = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -71,7 +71,7 @@ static ledc_channel_config_t svch_str = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_STR, 
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING )};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING)};
 
 static ledc_channel_config_t svch_ex1 = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -80,7 +80,7 @@ static ledc_channel_config_t svch_ex1 = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_EX1, 
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING * 4)};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 2000)};
 
 ///////////////////////////////////////////////////////////////////
 /// in task web-server ///
@@ -254,6 +254,60 @@ void auto_disable()
     auto_en = false;
 }
 
+///////////////////////////////////////////////////////////////////
+// ABS limitation
+void chklimit(float *x, float max)
+{
+    if (*x < -max)
+    {
+        *x = -max;
+    }
+    else if (*x > max)
+    {
+        *x = max;
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// servo control task
+void gyroServiceLoop()
+{
+    void str_pwm_out(float);
+
+    static float last_str_dev = 0.0f;
+    static float str_diff_lps = 0.0f;
+    float w_roll_dev, str_dev, str_dev_diff; // 偏差
+    float w_roll_cmd;
+
+    IMU_startRead();                                          // Start I2C read of IMU data, will be available in 10-20ms
+    if (auto_en)                                              // Auto steer enabled
+    {                                                         //
+        str_dev = str_target - str_out;                       // Steering deviation
+        str_dev_diff = (str_dev - last_str_dev) * SV_FRQ;     // Rate of change in deviation
+        str_diff_lps =                                        // Low-pass filter for derivative
+            saved.str_diff_alph * str_diff_lps                //
+            + (1.0f - saved.str_diff_alph) * str_dev_diff;    //
+        w_roll_cmd =                                          // Target roll velocity =
+            str_dev * saved.gain_str                          //
+            + str_diff_lps * saved.gain_str_diff;             // PD control: P*St + D*dSt
+        w_roll_dev = w_roll_cmd - IMU_roll();                 // Read IMU and calc roll rate deviation
+        str_out -=                                            // Steering servo increment
+            w_roll_dev * saved.gain_w_roll * (1.0f / SV_FRQ); // Counter-steering: right steer induces left lean
+        last_str_dev = str_dev;                               // Store last deviation
+        chklimit(&str_out, STRMAX);                           //
+        str_pwm_out(str_out);                                 // +: left steer
+    }
+    else
+    {
+        last_str_dev = 0.0f; // reset old values
+        str_diff_lps = 0.0f;
+        str_out = 0.0f;
+        str_pwm_out(str_target); // +: left steer
+        if (IMU_getZero())       // auto calibration n sec average
+            saved.acc_offset = acc_offset;
+    }
+}
+
 //// STR servo PWM rising edge trigger ////////////////////////////
 static TaskHandle_t xControlTaskHandle;
 static gptimer_handle_t sync_timer;
@@ -261,21 +315,21 @@ static gptimer_handle_t sync_timer;
 // Task synchronized with the servo PWM signal
 static void ControlTask(void *pvParameters)
 {
-    void gyroServiceLoop(), do_str_cmd_calc(); // control.c
+    void do_str_cmd_calc(); // control.c
     void put_control_data();
 
     acc_offset = saved.acc_offset;
     for (;;)
     {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for wakeup
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for Notify from sync_timer callback
         gpio_set_level(IO_1, 1);                 // IR LED ON
         gyroServiceLoop();
+        gpio_set_level(IO_1, 0); // IR LED OFF
         put_control_data();
         do_ex1_out();
         do_mot_out();
         do_str_cmd_calc();
         str_easing();
-        gpio_set_level(IO_1, 0); // IR LED OFF
     }
 }
 

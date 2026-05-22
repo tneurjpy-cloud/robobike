@@ -71,8 +71,8 @@ Copyright 2026.05.06 M.Tanaami
 #define SERVO_NEUTRAL_DUTY (1500.0f)   // 0deg 1500us
 #define STR_ADJ_MIN (-20)              //
 #define STR_ADJ_MAX (20)               //
-#define STR_CMD_SPD_P (25.0f / SV_FRQ) // deg/s positive
-#define STR_CMD_SPD_N (17.5f / SV_FRQ) // deg/s negative
+#define STR_CMD_SPD_P (60.0f / SV_FRQ) // deg/s positive
+#define STR_CMD_SPD_N (30.0f / SV_FRQ) // deg/s negative
 #define STR_SLIDER_MAX 100.0f          // +-100
 #define STR_GA_MAX 0.200f              //
 #define STR_GA_MIN 0.001f              //
@@ -81,13 +81,6 @@ Copyright 2026.05.06 M.Tanaami
 #define ROLL_GA_MAX 60                 //
 #define ROLL_GA_MIN 1                  //
 #define ANG2PULSE (1000.0f / 90.0f)    //
-
-typedef enum // 自動旋回修正用状態定義
-{
-    rsOuter,         // 外側走行、定常旋回
-    rsInner_Correct, // 内側走行、修正動作
-    rsInner_Stable   // 内側走行、定常旋回
-} TRunState;
 
 #define AUTOCORRECTTIME 150 // msec
 #define AUTOCORRECTRATE 0.6f
@@ -111,6 +104,13 @@ typedef struct
     int str_turn;         //
     uint32_t CRC;         //
 } TSave;
+
+typedef enum // 自動旋回修正用状態定義
+{
+    rsOuter,         // 外側走行、定常旋回
+    rsInner_Correct, // 内側走行、修正動作
+    rsInner_Stable   // 内側走行、定常旋回
+} TRunState;
 
 #define STRMAX 65
 #define STR_STOP 35

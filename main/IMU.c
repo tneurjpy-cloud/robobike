@@ -14,11 +14,14 @@
 // device specific functions
 extern void icm426xx_init();
 extern void icm426xx_sleep();
+extern void icm426xx_start_read();
 extern void icm426xx_get_data(Tvector6d *pac);
 
-#define IMU_getData() icm426xx_get_data(&acc)
 #define IMU_initIMU() icm426xx_init()
 #define IMU_SLEEPIMU() icm426xx_sleep()
+#define IMU_startRead_Inner() icm426xx_start_read()
+#define IMU_getData(p) icm426xx_get_data(p)
+
 //////////////////////////////////////////////////////////////
 
 Tvector6d acc = {0, 0, 0, 0, 0, 0};        // accel raw data
@@ -127,10 +130,15 @@ void IMU_init()
     IMU_initIMU();
 }
 
+void IMU_startRead()
+{
+    IMU_startRead_Inner();
+}
+
 // deg/sec 3-axis calibrated
 float IMU_roll()
 {
-    IMU_getData();
+    IMU_getData(&acc);
     // Dot product of the roll axis and angular velocity vector
     return GY_YAW * GYDIR_YAW // for stabilizing effect
            + GY_ROLL * GYDIR_ROLL;

@@ -89,9 +89,9 @@
         <button onclick="togglePause()" id="pauseBtn">PAUSE</button>
         <button onclick="downloadCSV()" id="downloadBtn" disabled>Save CSV</button>
         <select id="scaleSelect" style="padding: 4px; border-radius: 4px;">
-            <option value="0.5">x0.5</option>
-            <option value="1.0" selected>x1.0</option>
-            <option value="2.0">x2.0</option>
+            <option value="0.25">x0.5</option> <!-- 旧0.5を0.25に変更 -->
+            <option value="0.5" selected>x1.0</option> <!-- 旧1.0を0.5に変更 -->
+            <option value="1.0">x2.0</option> <!-- 旧2.0を1.0に変更 -->
         </select>
         <table id="valueTable">
             <tr id="tableRow"></tr>
@@ -138,8 +138,12 @@
                 const padding = 20;
                 const innerH = h - (padding * 2);
 
+                // スケール計算: サーボは100が端、ジャイロはその2倍
                 const servoScale = userScale * (innerH / 200);
-                const gyroScale = userScale * (innerH / 80);
+                const gyroScale = servoScale * 2;
+
+                // ラベル用の最大値（スケールに連動）
+                const maxVal = 100 / userScale;
 
                 lines.forEach(line => {
                     const p = line.split(',');
@@ -179,39 +183,35 @@
                         ctx.moveTo(nextX + 0.5, 0);
                         ctx.lineTo(nextX + 0.5, h);
                         ctx.stroke();
-
                         ctx.fillStyle = "#00ff00";
                         ctx.font = "12px Consolas";
-                        ctx.textAlign = 'right'; // 文字の描画を右寄せにする
-                        ctx.fillText((Math.floor(timeMs / 1000)) + "s", nextX - 5, h - 8); // 帯の端から少し左に寄せる
+                        ctx.textAlign = 'right';
+                        ctx.fillText((Math.floor(timeMs / 1000)) + "s", nextX - 5, h - 8);
                         ctx.textAlign = 'start';
-
                     }
                     lastX = nextX;
                 });
 
-                const gridSteps = [100, 0, -100];
-                gridSteps.forEach(v => {
+                // グリッド線とラベル描画（常に上下端に配置）
+                [maxVal, 0, -maxVal].forEach(v => {
                     const yPos = midY - (v * servoScale);
-                    if (yPos >= 0 && yPos <= h) {
-                        ctx.strokeStyle = (v === 0) ? "#666" : "#222";
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(0, Math.floor(yPos) + 0.5);
-                        ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
-                        ctx.stroke();
 
-                        ctx.font = "bold 15px Consolas";
-                        ctx.fillStyle = "rgba(0,0,0,0.8)";
-                        ctx.fillRect(5, Math.floor(yPos) - 12, 160, 24);
+                    ctx.strokeStyle = (v === 0) ? "#666" : "#222";
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, Math.floor(yPos) + 0.5);
+                    ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
+                    ctx.stroke();
 
-                        ctx.fillStyle = "#ff4444";
-                        ctx.fillText("S:" + v.toString().padStart(4, ' '), 10, Math.floor(yPos) + 6);
+                    ctx.fillStyle = "rgba(0,0,0,0.8)";
+                    ctx.fillRect(5, Math.floor(yPos) - 12, 160, 24);
 
-                        ctx.fillStyle = "#ffff44";
-                        const gyroLabel = (v * (80 / 200)).toFixed(1);
-                        ctx.fillText("G:" + gyroLabel.toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
-                    }
+                    ctx.fillStyle = "#ff4444";
+                    ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), 10, Math.floor(yPos) + 6);
+
+                    ctx.fillStyle = "#ffff44";
+                    // ジャイロは振幅2倍のため、ラベル値は実際の値の半分（端の目盛り）
+                    ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
                 });
 
                 const last = lines[lines.length - 1].split(',');
@@ -221,7 +221,7 @@
                 }
             } catch (e) { }
         }
-
+        
         function downloadCSV() {
             const now = new Date();
             const yyyy = now.getFullYear();

@@ -82,6 +82,56 @@ void read_who_am_i()
     }
 }
 
+void icm426xx_sleep()
+{
+    uint8_t sleep_mode = 0x00; // GYRO_MODE=00 (off), ACCEL_MODE=00 (off), IDLE=0, ACCEL_LP_CLK_SEL=0
+    ESP_LOGI(TAG, "entering sleep (PWR_MGMT0=0x%02X)", sleep_mode);
+    i2c_write(PWR_MGMT0, &sleep_mode, 1);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+static uint8_t raw[12] = {0};
+static uint8_t addr[1] = {0};
+static volatile bool i2c_done = true;
+
+// call this to start reading
+void icm426xx_start_read()
+{
+    addr[0] = ACCEL_DATA_X1;
+    if (i2c_done)
+    {
+        i2c_done = false;
+        i2c_master_transmit_receive(dev_handle, addr, 1, raw, 12, 0);
+    }
+}
+
+// I2C end of read data
+static bool IRAM_ATTR i2c_trans_done_callback(i2c_master_dev_handle_t dev_handle,
+                                              const i2c_master_event_data_t *event_data,
+                                              void *user_ctx)
+{
+    i2c_done = true;
+    return false;
+}
+
+// Call this after icm426xx_start_read()
+void icm426xx_get_data(Tvector6d *pac)
+{
+    uint32_t timeout = 0;
+
+    while (!i2c_done && timeout < 2000)
+    { // timeout = 20ms
+        esp_rom_delay_us(10);
+        timeout++;
+    }
+    pac->x = (int16_t)(((uint16_t)raw[0] << 8) | (uint16_t)raw[1]) * AC_SENSITIVITY;
+    pac->y = (int16_t)(((uint16_t)raw[2] << 8) | (uint16_t)raw[3]) * AC_SENSITIVITY;
+    pac->z = (int16_t)(((uint16_t)raw[4] << 8) | (uint16_t)raw[5]) * AC_SENSITIVITY;
+    pac->gx = (int16_t)(((uint16_t)raw[6] << 8) | (uint16_t)raw[7]) * GY_SENSITIVITY;
+    pac->gy = (int16_t)(((uint16_t)raw[8] << 8) | (uint16_t)raw[9]) * GY_SENSITIVITY;
+    pac->gz = (int16_t)(((uint16_t)raw[10] << 8) | (uint16_t)raw[11]) * GY_SENSITIVITY;
+}
+
 void icm426xx_init()
 {
     uint8_t cfg;
@@ -119,31 +169,30 @@ void icm426xx_init()
     cfg = 0x0F;
     i2c_write(PWR_MGMT0, &cfg, 1);
 
-    vTaskDelay(pdMS_TO_TICKS(100)); // 2026.03.29 ADD
-
     read_who_am_i();
     icm426xx_get_fs();
-}
 
-// 300 - 380 usec to do this function @1MHz
-void icm426xx_get_data(Tvector6d *pac)
-{
-    uint8_t raw[12] = {0};
+    ESP_ERROR_CHECK(i2c_master_bus_rm_device(dev_handle));
+    ESP_ERROR_CHECK(i2c_del_master_bus(bus_handle));
+    
+    vTaskDelay(pdMS_TO_TICKS(100)); // 2026.03.29 ADD
 
-    if (i2c_read(ACCEL_DATA_X1, raw, 12) == ESP_OK)
-    {
-        pac->x = (int16_t)(((uint16_t)raw[0] << 8) | (uint16_t)raw[1]) * AC_SENSITIVITY;
-        pac->y = (int16_t)(((uint16_t)raw[2] << 8) | (uint16_t)raw[3]) * AC_SENSITIVITY;
-        pac->z = (int16_t)(((uint16_t)raw[4] << 8) | (uint16_t)raw[5]) * AC_SENSITIVITY;
-        pac->gx = (int16_t)(((uint16_t)raw[6] << 8) | (uint16_t)raw[7]) * GY_SENSITIVITY;
-        pac->gy = (int16_t)(((uint16_t)raw[8] << 8) | (uint16_t)raw[9]) * GY_SENSITIVITY;
-        pac->gz = (int16_t)(((uint16_t)raw[10] << 8) | (uint16_t)raw[11]) * GY_SENSITIVITY;
-    }
-}
+    i2c_master_bus_config_t bus_configas = {
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .i2c_port = I2C_NUM_0,
+        .sda_io_num = (gpio_num_t)I2C_MASTER_SDA_IO,
+        .scl_io_num = (gpio_num_t)I2C_MASTER_SCL_IO,
+        .glitch_ignore_cnt = 7,
+        .flags.enable_internal_pullup = true,
+        .trans_queue_depth = 10,
+    };
+    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_configas, &bus_handle));
 
-void icm426xx_sleep()
-{
-    uint8_t sleep_mode = 0x00; // GYRO_MODE=00 (off), ACCEL_MODE=00 (off), IDLE=0, ACCEL_LP_CLK_SEL=0
-    ESP_LOGI(TAG, "entering sleep (PWR_MGMT0=0x%02X)", sleep_mode);
-    i2c_write(PWR_MGMT0, &sleep_mode, 1);
+    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+
+    // コールバックの登録
+    i2c_master_event_callbacks_t cbs = {
+        .on_trans_done = i2c_trans_done_callback,
+    };
+    ESP_ERROR_CHECK(i2c_master_register_event_callbacks(dev_handle, &cbs, NULL));
 }

@@ -67,6 +67,7 @@ extern float *pyaw_coeff;
 
 void IMU_init();
 float IMU_roll();
+void IMU_startRead();
 float IMU_side_acc();
 void IMU_sleep();
 bool IMU_getZero();
