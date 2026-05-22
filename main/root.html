@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>BICYCLE ROBOT Control</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            flex-direction: column;
+        }
+
+        .forward-button {
+            width: 28%;
+            height: 75px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            background-color: #81abff;
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 5vw;
+            width: 100%;
+        }
+
+        button {
+            user-select: none;
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            width: 28%;
+            height: 75px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-lr {
+            background-color: #81abff;
+        }
+
+        .btn-lr2 {
+            background-color: #81abff;
+            height: 50px;
+        }
+
+        .btn-start {
+            background-color: #fd7878;
+            width: 28%;
+            height: 75px;
+            margin-top: 20px;
+        }
+
+        .btn-bk {
+            background-color: #81abff;
+            width: 28%;
+            height: 50px;
+            margin-top: 10px;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        /* Slider for steering */
+        #slider {
+            width: 90vw;
+            height: 50px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #ccc;
+            border-radius: 10px;
+        }
+
+        /* スライダーのつまみ（thumb）のスタイル */
+        #slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 75px;
+            height: 45px;
+            background: #333;
+            cursor: pointer;
+        }
+
+        #slider::-moz-range-thumb {
+            width: 20px;
+            height: 30px;
+            background: #333;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>ROBOBIKE CONTROL</h2>
+    <div style="font-size: 12px; text-align: center;">
+        <span style="margin-top: 0px; " margin-bottom: 0px; color: black;">PROGVER</span>
+        <span id="prog_ver">---</span>
+        <br>
+    </div>
+
+    <div class="button-container">
+        <button class="btn-lr" ontouchstart="startCommand('bt_L')" ontouchend="cancelCommand()">←<br>LEFT</button>
+        <button class="forward-button" ontouchstart="sendCommand('bt_F')">↑<br>FORWARD</button>
+        <button class="btn-lr" ontouchstart="startCommand('bt_R')" ontouchend="cancelCommand()">→<br>RIGHT</button>
+    </div>
+
+    <input type="range" id="slider" min="-100" max="100" step="1" value="0">
+
+    <button class="btn-start" ontouchstart="sendCommand('bt_S')">!<br>STOP</button>
+    <br>
+    <button class="btn-bk" ontouchstart="sendCommand('bt_BK')">BACK</button>
+    <br>
+
+    <!-- Drive Speed -->
+    <div style="font-size: 16px; text-align: center; font-weight: bold;">
+        <span style="color: rgb(255, 0, 0);">DRIVE SPEED</span>
+        <span id="mot_spd">---</span>
+    </div>
+    <div class="button-container">
+        <button class="btn-lr2" onclick="sendCommand('bt_A_Up_0')">↑</button>
+        <button class="btn-lr2" onclick="sendCommand('bt_A_Dn_0')">↓</button>
+    </div>
+
+    <button onclick="window.location.href='/setup';" style="
+        height: 70px; 
+        font-size: 16px; 
+        border-radius: 15px; 
+        width: 50%; 
+        margin-top: 40px;">
+        SETUP
+    </button>
+
+    <script>
+        const SLD_MIN = -100;
+        const SLD_MAX = 100;
+        const slider = document.getElementById('slider');
+        let lastValue = slider.value;
+
+        const CMD_ID = {
+            unknown: 0, stp_all: 1, only_data: 2, bt_F: 3, bt_S: 4, bt_L: 5, bt_R: 6,
+            bt_Str_S: 7, bt_BK: 8, bt_A_Up_0: 9, bt_A_Dn_0: 10, bt_A_Up: 11, bt_A_Dn: 12,
+            bt_A_L: 13, bt_A_R: 14, bt_S_Up: 15, bt_S_Dn: 16, bt_R_Up: 17, bt_R_Dn: 18,
+            bt_D_St: 19, bt_D_Up: 20, bt_D_Dn: 21, bt_Std_nutAuto: 22, bt_Std_nutUp: 23,
+            bt_Std_nutDn: 24, bt_str_turnUp: 25, bt_str_turnDn: 26, IR_ON: 27, IR_OFF: 28,
+            bt_yaw_coeffUp: 29, bt_yaw_coeffDn: 30, bt_Ld_Default: 31
+        };
+
+        const CSV_KEYS = [
+            "HEADER", "PROG_VER", "DATA_VER", "STATUS", "STR0", "MOT_SPD",
+            "GAIN_STR", "GAIN_W_ROLL", "GAIN_DIFF", "ANG_STD_NUT", "STR_TURN",
+            "YAW_COEFF", "AUTO_CIRCLING", "STR_CMD_RATE"
+        ];
+
+        const CSV_IDX = Object.fromEntries(CSV_KEYS.map((key, index) => [key, index]));
+
+        function updateDisplay(dataArray) {
+            if (!dataArray || dataArray[CSV_IDX.HEADER] !== 'b') return;
+
+            if (document.getElementById('prog_ver'))
+                document.getElementById('prog_ver').innerText = dataArray[CSV_IDX.PROG_VER];
+
+            if (document.getElementById('mot_spd'))
+                document.getElementById('mot_spd').innerText = dataArray[CSV_IDX.MOT_SPD];
+
+            if (dataArray[CSV_IDX.STR_CMD_RATE] !== undefined) {
+                const rate = parseFloat(dataArray[CSV_IDX.STR_CMD_RATE]);
+                slider.value = rate;
+                lastValue = slider.value;
+            }
+        }
+
+        function fetchInitialData() {
+            sendCommand('only_data');
+        }
+
+        window.onload = fetchInitialData;
+
+        setInterval(() => {
+            const currentValue = slider.value;
+            if (currentValue !== lastValue) {
+                lastValue = currentValue;
+                sendValue('bt_Str_S', currentValue);
+            }
+        }, 250);
+
+        function startCommand(button) {
+            sendCommand(button);
+        }
+
+        function sendCommand(buttonName) {
+            const id = CMD_ID[buttonName];
+            if (id === undefined) return;
+
+            fetch(`/command?button=${id}`)
+                .then(response => response.text())
+                .then(csvText => {
+                    const data = csvText.split(',').map(s => s.trim());
+                    updateDisplay(data);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // スライダー値の送信（IDに変換）
+        function sendValue(cmdName, value) {
+            const id = CMD_ID[cmdName];
+            if (id === undefined) return;
+
+            fetch(`/command?button=${id}&value=${value}`)
+                .then(response => response.text())
+                .then(csvText => {
+                    const dataArray = csvText.split(',').map(s => s.trim());
+                    updateDisplay(dataArray);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        document.getElementById("slider").min = SLD_MIN;
+        document.getElementById("slider").max = SLD_MAX;
+    </script>
+</body>
+
+</html>

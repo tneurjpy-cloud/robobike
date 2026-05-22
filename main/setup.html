@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ROBOBIKE SETUP</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding-top: 10px;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            width: 200px;
+            margin: 10px auto 20px auto;
+            gap: 10px;
+        }
+
+        button {
+            width: 48%;
+            height: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-left {
+            flex: 1;
+            background-color: #88AAff;
+        }
+
+        .btn-right {
+            flex: 1;
+            background-color: #88aaff;
+        }
+
+        .btn-stop {
+            flex: 1;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Version -->
+    <div>
+        <div style="font-size: 12px; text-align: center;">
+            <span style="margin-bottom: 0px; color: black;">PROGVER</span>
+            <span id="prog_ver">---</span>
+            <br>
+        </div>
+    </div>
+
+    <h2>ROBOBIKE SETUP</h2>
+
+    <!-- STEERING NEUTRAL -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color: red;">STEERING NEUTRAL</span>
+            <span id="str0">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_A_L')">←</button>
+            <button class="btn-right" onclick="sendCommand('bt_A_R')">→</button>
+        </div>
+    </div>
+
+    <!-- STEERING MAX ANGLE -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color: red;">STEERING MAX</span>
+            <span id="str_turn">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_str_turnUp')">↑</button>
+            <button class="btn-right" onclick="sendCommand('bt_str_turnDn')">↓</button>
+        </div>
+    </div>
+
+    <!-- STARTING TILT ANGLE -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color: orange;">STARTING TILT ANGLE</span>
+            <span id="ang_std_nut">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_Std_nutUp')">←</button>
+            <button class="btn-right" onclick="sendCommand('bt_Std_nutDn')">→</button>
+        </div>
+    </div>
+
+    <!-- Drive Speed -->
+    <div style="font-size: 16px; text-align: center; font-weight: bold;">
+        <span style="color: rgb(255, 0, 0);">DRIVE SPEED</span>
+        <span id="mot_spd">---</span>
+    </div>
+    <div class="button-container">
+        <button class="btn-left" onclick="sendCommand('bt_A_Up')">↑</button>
+        <button class="btn-right" onclick="sendCommand('bt_A_Dn')">↓</button>
+        <button class="btn-stop" onclick="sendCommand('bt_D_St')">STOP</button>
+    </div>
+
+    <!-- ADVANCED SETTINGS & SAVE & OTA -->
+    <div style="width: 50%; margin: 0 auto; text-align: center;">
+
+        <button onclick="location.href='/monitor';" style="
+            height: 50px; 
+            font-size: 16px; 
+            font-weight: bold;
+            border-radius: 10px; 
+            width: 100%; 
+            margin-top: 20px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;">
+            DATA MONITOR
+        </button>
+
+        <button onclick="location.href='/ota';" style="
+            height: 50px; 
+            font-size: 16px; 
+            font-weight: bold;
+            border-radius: 10px; 
+            width: 100%; 
+            margin-top: 20px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;">
+            PROGRAM UPDATE
+        </button>
+
+        <button onclick="notifyThenRedirectSetupParams()" style="
+            height: 50px; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            width: 100%; 
+            margin-top: 20px;">
+            ADVANCED SETTINGS
+        </button>
+
+        <button onclick="notifyThenRedirect()" style="
+            height: 70px; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            width: 100%; 
+            margin-top: 20px;">
+            SAVE & EXIT
+        </button>
+    </div>
+
+    <script>
+        const CMD_ID = {
+            unknown: 0, stp_all: 1, only_data: 2, bt_F: 3, bt_S: 4, bt_L: 5, bt_R: 6,
+            bt_Str_S: 7, bt_BK: 8, bt_A_Up_0: 9, bt_A_Dn_0: 10, bt_A_Up: 11, bt_A_Dn: 12,
+            bt_A_L: 13, bt_A_R: 14, bt_S_Up: 15, bt_S_Dn: 16, bt_R_Up: 17, bt_R_Dn: 18,
+            bt_D_St: 19, bt_D_Up: 20, bt_D_Dn: 21, bt_Std_nutAuto: 22, bt_Std_nutUp: 23,
+            bt_Std_nutDn: 24, bt_str_turnUp: 25, bt_str_turnDn: 26, IR_ON: 27, IR_OFF: 28,
+            bt_yaw_coeffUp: 29, bt_yaw_coeffDn: 30, bt_Ld_Default: 31
+        };
+
+        const CSV_KEYS = [
+            "HEADER", "PROG_VER", "DATA_VER", "STATUS", "STR0", "MOT_SPD",
+            "GAIN_STR", "GAIN_W_ROLL", "GAIN_DIFF", "ANG_STD_NUT", "STR_TURN",
+            "YAW_COEFF", "AUTO_CIRCLING", "STR_CMD_RATE"
+        ];
+
+        const CSV_IDX = Object.fromEntries(CSV_KEYS.map((key, index) => [key, index]));
+
+        function updateDisplay(data) {
+            if (!data || data[CSV_IDX.HEADER] !== 'b') return;
+
+            if (document.getElementById('str0'))
+                document.getElementById('str0').innerText = data[CSV_IDX.STR0];
+            if (document.getElementById('ang_std_nut'))
+                document.getElementById('ang_std_nut').innerText = data[CSV_IDX.ANG_STD_NUT];
+            if (document.getElementById('str_turn'))
+                document.getElementById('str_turn').innerText = data[CSV_IDX.STR_TURN];
+            if (document.getElementById('mot_spd'))
+                document.getElementById('mot_spd').innerText = data[CSV_IDX.MOT_SPD];
+            if (document.getElementById('prog_ver'))
+                document.getElementById('prog_ver').innerText = data[CSV_IDX.PROG_VER];
+        }
+
+        function sendCommand(buttonName) {
+            const id = CMD_ID[buttonName];
+
+            if (id === undefined) {
+                console.error("Unknown command:", buttonName);
+                return;
+            }
+
+            fetch(`/command?button=${id}`)
+                .then(response => response.text())
+                .then(csvText => {
+                    const dataArray = csvText.split(',').map(s => s.trim());
+                    updateDisplay(dataArray);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function fetchInitialData() {
+            sendCommand('only_data');
+        }
+
+        window.onload = fetchInitialData;
+
+        function setupHoldButton(buttonElement, command) {
+            if (!buttonElement) return;
+            let intervalId = null;
+            const startRepeat = () => {
+                sendCommand(command);
+                intervalId = setInterval(() => sendCommand(command), 300);
+            };
+            const stopRepeat = () => {
+                clearInterval(intervalId);
+                intervalId = null;
+            };
+            buttonElement.addEventListener("touchstart", (e) => {
+                e.preventDefault();
+                startRepeat();
+            });
+            buttonElement.addEventListener("touchend", stopRepeat);
+            buttonElement.addEventListener("touchcancel", stopRepeat);
+        }
+
+        window.addEventListener("load", () => { // push long
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_A_L')\"]"), "bt_A_L");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_A_R')\"]"), "bt_A_R");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_Std_nutUp')\"]"), "bt_Std_nutUp");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_Std_nutDn')\"]"), "bt_Std_nutDn");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_str_turnUp')\"]"), "bt_str_turnUp");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_str_turnDn')\"]"), "bt_str_turnDn");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_A_Up')\"]"), "bt_A_Up");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_A_Dn')\"]"), "bt_A_Dn");
+        });
+
+        function notifyThenRedirectSetupParams() {
+            sendCommand('stp_all');
+            setTimeout(() => { window.location.href = '/setup2'; }, 100);
+        }
+
+        function notifyThenRedirect() {
+            sendCommand('stp_all');
+            setTimeout(() => { window.location.href = '/'; }, 100);
+        }
+    </script>
+</body>
+
+</html>

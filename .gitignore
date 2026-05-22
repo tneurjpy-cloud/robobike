@@ -1,0 +1,47 @@
+# --- ビルド生成物 ---
+# 基本的に build フォルダ全体を除外
+build/
+
+sdkconfig.old
+*.esp32.d
+*.esp32.map
+*.esp32.elf
+
+# --- ESP-IDF ---
+esp-idf/
+
+# --- ユーザー固有の設定 ---
+sdkconfig.old.in
+sdkconfig.backup
+
+# --- Pythonのキャッシュ ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+
+# --- エディタとIDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# --- ビルドキャッシュとオブジェクトファイル ---
+*.o
+*.a
+*.lib
+*.so
+*.dylib
+
+# --- デバッグファイル ---
+*.pdb
+*.gch
+
+# --- ローカル環境用ドットファイル ---
+.env.local
+*.log

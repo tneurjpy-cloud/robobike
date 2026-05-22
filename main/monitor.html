@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>ROBOBIKE Monitor</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            font-family: sans-serif;
+            margin: 10px;
+            overflow: hidden;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        button {
+            background-color: #444;
+            color: white;
+            border: 1px solid #888;
+            cursor: pointer;
+            padding: 6px 12px;
+            font-weight: bold;
+            border-radius: 4px;
+        }
+
+        #downloadBtn {
+            background-color: #28a745;
+        }
+
+        #downloadBtn:disabled {
+            background-color: #444;
+            color: #888;
+        }
+
+        #valueTable {
+            border-collapse: collapse;
+            font-family: "Consolas", monospace;
+            background: #000;
+        }
+
+        #valueTable td {
+            border: 1px solid #333;
+            padding: 4px 10px;
+            height: 32px;
+        }
+
+        .cell-content {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        input[type="checkbox"] {
+            margin: 0;
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
+        }
+
+        .label-text {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .num-cell {
+            text-align: right;
+            min-width: 85px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        canvas {
+            background-color: #000;
+            display: block;
+            border: 1px solid #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <button onclick="togglePause()" id="pauseBtn">PAUSE</button>
+        <button onclick="downloadCSV()" id="downloadBtn" disabled>Save CSV</button>
+        <select id="scaleSelect" style="padding: 4px; border-radius: 4px;">
+            <option value="0.5">x0.5</option>
+            <option value="1.0" selected>x1.0</option>
+            <option value="2.0">x2.0</option>
+        </select>
+        <table id="valueTable">
+            <tr id="tableRow"></tr>
+        </table>
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const MON_CSV_KEYS = ["HEADER", "TIME_MS", "SV_DRV", "SV_STR", "SV_STD", "GY_ROLL", "GY_YAW", "GY_PITCH"];
+        const colors = [null, null, "#ff4444", "#44ff44", "#4444ff", "#ffff44", "#ff44ff", "#ffffff"];
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const tableRow = document.getElementById('tableRow');
+        let isPaused = false;
+        let dataLog = [];
+        let lastX = -1;
+        let lastY = new Array(8).fill(-1);
+        const DOT_MS = 5;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth - 20;
+            canvas.height = window.innerHeight - 120;
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').innerText = isPaused ? "RESUME" : "PAUSE";
+            document.getElementById('downloadBtn').disabled = !isPaused;
+        }
+
+        function update() {
+            if (isPaused) return;
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/get_acc', false);
+            try {
+                xhr.send();
+                if (xhr.status !== 200) return;
+                const lines = xhr.responseText.trim().split('\n').filter(l => l.length > 0);
+
+                const h = canvas.height;
+                const midY = h / 2;
+                const userScale = parseFloat(document.getElementById('scaleSelect').value);
+                const padding = 20;
+                const innerH = h - (padding * 2);
+
+                const servoScale = userScale * (innerH / 200);
+                const gyroScale = userScale * (innerH / 80);
+
+                lines.forEach(line => {
+                    const p = line.split(',');
+                    if (p.length < 8) return;
+                    dataLog.push(line);
+                    if (dataLog.length > 12000) dataLog.shift();
+
+                    const timeMs = parseInt(p[1]);
+                    const nextX = Math.floor(timeMs / DOT_MS) % canvas.width;
+
+                    ctx.fillStyle = "#000";
+                    ctx.fillRect(nextX, 0, 6, h);
+
+                    for (let i = 2; i < 8; i++) {
+                        if (!document.getElementById('chk-' + i).checked) {
+                            lastY[i] = -1; continue;
+                        }
+                        const val = parseFloat(p[i]);
+                        const currentScale = (i >= 5) ? gyroScale : servoScale;
+                        const nextY = midY - (val * currentScale);
+
+                        if (lastX !== -1 && lastY[i] !== -1 && nextX > lastX) {
+                            ctx.strokeStyle = colors[i];
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(lastX, lastY[i]);
+                            ctx.lineTo(nextX, nextY);
+                            ctx.stroke();
+                        }
+                        lastY[i] = nextY;
+                    }
+
+                    if (Math.floor(timeMs / 1000) !== Math.floor((timeMs - 5) / 1000)) {
+                        ctx.strokeStyle = "#333";
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(nextX + 0.5, 0);
+                        ctx.lineTo(nextX + 0.5, h);
+                        ctx.stroke();
+
+                        ctx.fillStyle = "#00ff00";
+                        ctx.font = "12px Consolas";
+                        ctx.textAlign = 'right'; // 文字の描画を右寄せにする
+                        ctx.fillText((Math.floor(timeMs / 1000)) + "s", nextX - 5, h - 8); // 帯の端から少し左に寄せる
+                        ctx.textAlign = 'start';
+
+                    }
+                    lastX = nextX;
+                });
+
+                const gridSteps = [100, 0, -100];
+                gridSteps.forEach(v => {
+                    const yPos = midY - (v * servoScale);
+                    if (yPos >= 0 && yPos <= h) {
+                        ctx.strokeStyle = (v === 0) ? "#666" : "#222";
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(0, Math.floor(yPos) + 0.5);
+                        ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
+                        ctx.stroke();
+
+                        ctx.font = "bold 15px Consolas";
+                        ctx.fillStyle = "rgba(0,0,0,0.8)";
+                        ctx.fillRect(5, Math.floor(yPos) - 12, 160, 24);
+
+                        ctx.fillStyle = "#ff4444";
+                        ctx.fillText("S:" + v.toString().padStart(4, ' '), 10, Math.floor(yPos) + 6);
+
+                        ctx.fillStyle = "#ffff44";
+                        const gyroLabel = (v * (80 / 200)).toFixed(1);
+                        ctx.fillText("G:" + gyroLabel.toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
+                    }
+                });
+
+                const last = lines[lines.length - 1].split(',');
+                for (let i = 2; i < 8; i++) {
+                    const val = parseFloat(last[i]);
+                    document.getElementById('val-' + i).innerText = isNaN(val) ? "---" : val.toFixed(2);
+                }
+            } catch (e) { }
+        }
+
+        function downloadCSV() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const nn = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            const filename = `${yyyy}${mm}${dd}${hh}${nn}${ss}.csv`;
+
+            const header = MON_CSV_KEYS.join(',') + '\n';
+            const blob = new Blob([header + dataLog.join('\n')], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+        }
+
+        MON_CSV_KEYS.forEach((key, i) => {
+            if (i < 2) return;
+            const isChecked = (key === "GY_PITCH") ? "" : "checked";
+            const td = document.createElement('td');
+            td.innerHTML = `
+                <div class="cell-content">
+                    <input type="checkbox" id="chk-${i}" ${isChecked}>
+                    <span class="label-text" style="color:${colors[i]}">${key}</span>
+                </div>`;
+            const numTd = document.createElement('td');
+            numTd.className = 'num-cell';
+            numTd.id = 'val-' + i;
+            numTd.style.color = colors[i];
+            tableRow.appendChild(td);
+            tableRow.appendChild(numTd);
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        window.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                e.preventDefault();
+                togglePause();
+            }
+        });
+
+        setInterval(update, 50);
+    </script>
+</body>
+
+</html>
