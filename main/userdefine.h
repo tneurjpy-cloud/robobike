@@ -68,19 +68,17 @@ Copyright 2026.05.06 M.Tanaami
 #define IO_SV_EN IO_10
 
 ///////////////// R/C servo using /////////////////
-#define SERVO_NEUTRAL_DUTY (1500.0f)   // 0deg 1500us
-#define STR_ADJ_MIN (-20)              //
-#define STR_ADJ_MAX (20)               //
-#define STR_CMD_SPD_P (60.0f / SV_FRQ) // deg/s positive
-#define STR_CMD_SPD_N (30.0f / SV_FRQ) // deg/s negative
-#define STR_SLIDER_MAX 100.0f          // +-100
-#define STR_GA_MAX 0.200f              //
-#define STR_GA_MIN 0.001f              //
-#define DIFF_GA_MAX 0.200f             //
-#define DIFF_GA_MIN 0.000f             //
-#define ROLL_GA_MAX 60                 //
-#define ROLL_GA_MIN 1                  //
-#define ANG2PULSE (1000.0f / 90.0f)    //
+#define SERVO_NEUTRAL_DUTY (1500.0f) // 0deg 1500us
+#define STR_ADJ_MIN (-20)            //
+#define STR_ADJ_MAX (20)             //
+#define STR_SLIDER_MAX 100.0f        // +-100
+#define STR_GA_MAX 0.200f            //
+#define STR_GA_MIN 0.001f            //
+#define DIFF_GA_MAX 0.200f           //
+#define DIFF_GA_MIN 0.000f           //
+#define ROLL_GA_MAX 60               //
+#define ROLL_GA_MIN 1                //
+#define ANG2PULSE (1000.0f / 90.0f)  //
 
 #define AUTOCORRECTTIME 150 // msec
 #define AUTOCORRECTRATE 0.6f
@@ -102,6 +100,7 @@ typedef struct
     float run_coeff;      // run-speed feedback coefficient
     float yaw_coeff;      // yaw‑rate feedback coefficient
     int str_turn;         //
+    int str_cmd_speed;    // steering command changeing speed deg/sec
     uint32_t CRC;         //
 } TSave;
 
@@ -186,6 +185,8 @@ extern const httpd_uri_t ota;
     V(bt_Std_nutDn)     \
     V(bt_str_turnUp)    \
     V(bt_str_turnDn)    \
+    V(bt_strcmd_Up)     \
+    V(bt_strcmd_Dn)     \
     V(IR_ON)            \
     V(IR_OFF)           \
     V(bt_yaw_coeffUp)   \
@@ -207,9 +208,9 @@ typedef struct
 } control_msg_t;
 
 ///////////////// common function declarations ////////////////
-void set_mot_duty(float duty, float step);   // duty in +-100%, step: /cycle
+void set_mot_duty(float duty, float step); // duty in +-100%, step: /cycle
 void wait_mot_duty();
-void set_str_cmd(float angle, float step);   // angle in deg, step: /cycle
+void set_str_cmd(float angle, float step); // angle in deg, step: /cycle
 void wait_str_angle();
 void set_ex1_angle(float angle, float step); // angle in deg, step: /cycle
 void wait_ex1_angle();

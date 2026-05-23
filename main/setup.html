@@ -115,6 +115,15 @@
     <!-- ADVANCED SETTINGS & SAVE & OTA -->
     <div style="width: 50%; margin: 0 auto; text-align: center;">
 
+        <button onclick="notifyThenRedirectSetupParams()" style="
+            height: 50px; 
+            font-size: 16px; 
+            border-radius: 10px; 
+            width: 100%; 
+            margin-top: 20px;">
+            ADVANCED SETTINGS
+        </button>
+
         <button onclick="location.href='/monitor';" style="
             height: 50px; 
             font-size: 16px; 
@@ -139,15 +148,6 @@
             PROGRAM UPDATE
         </button>
 
-        <button onclick="notifyThenRedirectSetupParams()" style="
-            height: 50px; 
-            font-size: 16px; 
-            border-radius: 10px; 
-            width: 100%; 
-            margin-top: 20px;">
-            ADVANCED SETTINGS
-        </button>
-
         <button onclick="notifyThenRedirect()" style="
             height: 70px; 
             font-size: 16px; 
@@ -159,19 +159,37 @@
     </div>
 
     <script>
-        const CMD_ID = {
-            unknown: 0, stp_all: 1, only_data: 2, bt_F: 3, bt_S: 4, bt_L: 5, bt_R: 6,
-            bt_Str_S: 7, bt_BK: 8, bt_A_Up_0: 9, bt_A_Dn_0: 10, bt_A_Up: 11, bt_A_Dn: 12,
-            bt_A_L: 13, bt_A_R: 14, bt_S_Up: 15, bt_S_Dn: 16, bt_R_Up: 17, bt_R_Dn: 18,
-            bt_D_St: 19, bt_D_Up: 20, bt_D_Dn: 21, bt_Std_nutAuto: 22, bt_Std_nutUp: 23,
-            bt_Std_nutDn: 24, bt_str_turnUp: 25, bt_str_turnDn: 26, IR_ON: 27, IR_OFF: 28,
-            bt_yaw_coeffUp: 29, bt_yaw_coeffDn: 30, bt_Ld_Default: 31
-        };
+        const COMMAND_NAMES = [
+            'stp_all', 'only_data', 'bt_F', 'bt_S', 'bt_L', 'bt_R', 'bt_Str_S', 'bt_BK',
+            'bt_A_Up_0', 'bt_A_Dn_0', 'bt_A_Up', 'bt_A_Dn', 'bt_A_L', 'bt_A_R',
+            'bt_S_Up', 'bt_S_Dn', 'bt_R_Up', 'bt_R_Dn', 'bt_D_St', 'bt_D_Up',
+            'bt_D_Dn', 'bt_Std_nutAuto', 'bt_Std_nutUp', 'bt_Std_nutDn',
+            'bt_str_turnUp', 'bt_str_turnDn', 'bt_strcmd_Up', 'bt_strcmd_Dn',
+            'IR_ON', 'IR_OFF', 'bt_yaw_coeffUp', 'bt_yaw_coeffDn', 'bt_Ld_Default'
+        ];
+
+        const CMD_ID = { unknown: 0 };
+        COMMAND_NAMES.forEach((name, index) => {
+            CMD_ID[name] = index + 1;
+        });
+
 
         const CSV_KEYS = [
-            "HEADER", "PROG_VER", "DATA_VER", "STATUS", "STR0", "MOT_SPD",
-            "GAIN_STR", "GAIN_W_ROLL", "GAIN_DIFF", "ANG_STD_NUT", "STR_TURN",
-            "YAW_COEFF", "AUTO_CIRCLING", "STR_CMD_RATE"
+            "HEADER",       // 0: 'b'
+            "PROG_VER",     // 1
+            "DATA_VER",     // 2
+            "STATUS",       // 3
+            "STR0",         // 4
+            "MOT_SPD",      // 5
+            "GAIN_STR",     // 6
+            "GAIN_W_ROLL",  // 7
+            "GAIN_DIFF",    // 8
+            "ANG_STD_NUT",  // 9
+            "STR_TURN",     // 10
+            "YAW_COEFF",    // 11
+            "AUTO_CIRCLING",// 12
+            "STR_CMD_RATE", // 13
+            "STR_CMD_SPD"   // 14
         ];
 
         const CSV_IDX = Object.fromEntries(CSV_KEYS.map((key, index) => [key, index]));

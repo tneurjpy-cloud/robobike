@@ -24,10 +24,11 @@ char *get_edit_data()
         "STR_TURN",     // 10
         "YAW_COEFF",    // 11
         "AUTO_CIRCLING",// 12
-        "STR_CMD_RATE"  // 13
+        "STR_CMD_RATE", // 13
+        "STR_CMD_SPD"   // 14
     ];
     */
-    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f",
+    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d",
              'b',
              PROGVER,
              DATAVER,
@@ -41,7 +42,8 @@ char *get_edit_data()
              saved.str_turn,
              saved.yaw_coeff,
              autoCircling,
-             str_cmd_rate);
+             str_cmd_rate,
+             saved.str_cmd_speed);
 
     ESP_LOGI(TAG, "length=%d\ncsv=%s", strlen(rescsv), rescsv);
 
@@ -146,6 +148,7 @@ static void cmdProcTask(void *pvParameters)
     void savenvs();
     void set_led_brightness(uint8_t);
     void auto_enable();
+    extern bool PWM_phase_sync;
 
     for (;;)
     {
@@ -169,12 +172,12 @@ static void cmdProcTask(void *pvParameters)
                 xEventGroupSetBits(xCommandEventGroup, CMD_F_BIT);
                 if (mot_out != 0.0f) // 走行中
                 {
-                    set_str_cmd(0.0f, STR_CMD_SPD_N);
+                    set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / (float)SV_FRQ); // ゆっくりと戻す
                 }
                 else // start on stop
                 {    // down the stand slowly, motor on, up the stand
                     auto_disable();
-                    set_led_brightness(LEDHIGH);
+                    PWM_phase_sync = true; // 位相が時折狂うため、発進時にリセットをかける                   set_led_brightness(LEDHIGH);
                     set_str_cmd(0.0f, 0.0f);
                     set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
                     wait_ex1_angle();
@@ -197,7 +200,7 @@ static void cmdProcTask(void *pvParameters)
                 {
                     if (str_target != 0.f)
                     {
-                        set_str_cmd(0.0f, STR_CMD_SPD_N * 2.0f);
+                        set_str_cmd(0.0f, saved.str_cmd_speed / (float)SV_FRQ);
                         wait_str_angle();
                         vTaskDelay(pdMS_TO_TICKS(200));
                     }
@@ -269,7 +272,10 @@ esp_err_t put_command(control_msg_t *msg)
         xMutex = xSemaphoreCreateMutex();
         xCommandEventGroup = xEventGroupCreate();
 
-        xTaskCreate(cmdProcTask, "cmdProcTask", 3072, NULL, 1, &xcmdProc_TaskHandle);
+        // 自身の優先度を取得
+        UBaseType_t currentPriority = uxTaskPriorityGet(NULL);
+        UBaseType_t newPriority = (currentPriority > 0) ? (currentPriority - 1) : 0;
+        xTaskCreate(cmdProcTask, "cmdProcTask", 3072, NULL, newPriority, &xcmdProc_TaskHandle);
         ESP_LOGI(TAG, "cmdProcTask created.");
     }
 
@@ -296,11 +302,11 @@ esp_err_t put_command(control_msg_t *msg)
         break;
 
     case bt_L:
-        set_str_cmd(-saved.str_turn, STR_CMD_SPD_P);
+        set_str_cmd(-saved.str_turn, saved.str_cmd_speed / (float)SV_FRQ);
         break;
 
     case bt_R:
-        set_str_cmd(saved.str_turn, STR_CMD_SPD_P);
+        set_str_cmd(saved.str_turn, saved.str_cmd_speed / (float)SV_FRQ);
         break;
 
     case bt_Str_S: // Control by sliding bar
@@ -310,17 +316,17 @@ esp_err_t put_command(control_msg_t *msg)
         res = httpd_req_get_url_query_str(msg->req, query_str, sizeof(query_str));
         res = httpd_query_key_value(query_str, "value", value_str, sizeof(value_str));
         float value = atof(value_str);
-        set_str_cmd(value * saved.str_turn / STR_SLIDER_MAX, STR_CMD_SPD_P);
+        set_str_cmd(value * saved.str_turn / STR_SLIDER_MAX, saved.str_cmd_speed / (float)SV_FRQ);
         break;
 
     case bt_BK:
         if (mot_out == 0) // 停止中
         {
-            set_mot_duty(MOT_SPEED_BACK, 0.0f);
+            set_mot_duty(MOT_SPEED_BACK, (40.0f / SV_FRQ));
         }
         else if (mot_out < 0)
         {
-            set_mot_duty(0.0f, 0.0f);
+            set_mot_duty(0.0f, (40.0f / SV_FRQ));
         }
         break;
 
@@ -432,6 +438,18 @@ esp_err_t put_command(control_msg_t *msg)
         set_mot_duty(0.0f, 0.0f);
         if (saved.str_turn > (STRMAX / 10))
             saved.str_turn -= 1;
+        break;
+
+    case bt_strcmd_Up:
+        set_mot_duty(0.0f, 0.0f);
+        if (saved.str_cmd_speed < 100)
+            saved.str_cmd_speed++;
+        break;
+
+    case bt_strcmd_Dn:
+        set_mot_duty(0.0f, 0.0f);
+        if (saved.str_cmd_speed > 0)
+            saved.str_cmd_speed--;
         break;
 
     case IR_ON:

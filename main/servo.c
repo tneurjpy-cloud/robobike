@@ -5,9 +5,6 @@
 
 static const char TAG[] = "servo";
 
-#define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ))
-#define DELAYTIME_RISING 600 // us, Delay time for sync_timer alarm to PWM rising edge
-
 float str_cmd0;   // deg +-90.0f  +: Left turn
 float str_cmd1;   // deg
 float str_target; // deg
@@ -32,8 +29,8 @@ const TSave savedefault = {
     DATAVER,                                      // (int) data format version
     0,                                            // (uint32_t) operation time in sec
     false,                                        // isChecked
-    0.035f,                                       // gain_str;
-    0.045f,                                       // gain_str_diff
+    0.030f,                                       // gain_str;
+    0.040f,                                       // gain_str_diff
     12.0f,                                        // gain_w_roll;
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
     {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
@@ -41,13 +38,17 @@ const TSave savedefault = {
     0,                                            // (int) steering angle neutral R= +deg
     60,                                           // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
     20,                                           // (int) stand for start
-    0.0f,                                         // reserved
-    0.012f,                                       // yaw‑rate feedback coefficient
-    40,                                           // (int) steering_turn
+    0.0f,                                         // run-speed feedback coefficient
+    0.011f,                                       // yaw‑rate feedback coefficient
+    40,                                           // (int) str_turn deg
+    30,                                           // (int) str_cmd_speed deg/sec
     0xFFFFFFFF                                    // (uint32_t) CRC
 };
 
 //// R/C servo pulse width making
+#define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ)) // LEDC_TIMER_14_BIT 2^14
+#define DELAYTIME_RISING 650                                  // us Delay time for rising edge
+
 static const ledc_timer_config_t servo_timer = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
     .duty_resolution = LEDC_TIMER_14_BIT, // 16384 steps for 100% duty
@@ -60,7 +61,7 @@ static ledc_channel_config_t svch_mot = {
     .channel = LEDC_CHANNEL_0,
     .timer_sel = LEDC_TIMER_0,
     .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = GPIO_DRV, 
+    .gpio_num = GPIO_DRV,
     .duty = SERVO_NEUTRAL_DUTY,
     .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1000)};
 
@@ -69,7 +70,7 @@ static ledc_channel_config_t svch_str = {
     .channel = LEDC_CHANNEL_1,
     .timer_sel = LEDC_TIMER_0,
     .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = GPIO_STR, 
+    .gpio_num = GPIO_STR,
     .duty = SERVO_NEUTRAL_DUTY,
     .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING)};
 
@@ -78,7 +79,7 @@ static ledc_channel_config_t svch_ex1 = {
     .channel = LEDC_CHANNEL_2,
     .timer_sel = LEDC_TIMER_0,
     .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = GPIO_EX1, 
+    .gpio_num = GPIO_EX1,
     .duty = SERVO_NEUTRAL_DUTY,
     .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 2000)};
 
@@ -311,6 +312,7 @@ void gyroServiceLoop()
 //// STR servo PWM rising edge trigger ////////////////////////////
 static TaskHandle_t xControlTaskHandle;
 static gptimer_handle_t sync_timer;
+volatile bool PWM_phase_sync = true;
 
 // Task synchronized with the servo PWM signal
 static void ControlTask(void *pvParameters)
@@ -335,13 +337,12 @@ static void ControlTask(void *pvParameters)
 
 ////////////////////////////////////////////////////////////////////////////
 /// Master Sync Callback ///
-static bool is_first_sync = true;
 static bool IRAM_ATTR sync_timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
-    if (is_first_sync)
+    if (PWM_phase_sync)
     {
         ledc_timer_rst(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
-        is_first_sync = false;
+        PWM_phase_sync = false;
     }
     vTaskNotifyGiveFromISR(xControlTaskHandle, NULL);
     return true; // return true to auto-reload the timer
