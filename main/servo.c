@@ -63,7 +63,7 @@ static ledc_channel_config_t svch_mot = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_DRV,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1000)};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 600)};
 
 static ledc_channel_config_t svch_str = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -81,7 +81,7 @@ static ledc_channel_config_t svch_ex1 = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_EX1,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 2000)};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1200)};
 
 ///////////////////////////////////////////////////////////////////
 /// in task web-server ///
