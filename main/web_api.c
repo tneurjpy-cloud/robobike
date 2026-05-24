@@ -64,8 +64,6 @@ Tlogvector ring_buffer[RING_BUF_SIZE];
 static int index_w = 0;
 static int index_r = 0; // 最後に読み出した位置
 
-void auto_disable();
-
 ////////////////////////////////////////////////////////
 /// called in Control task for data logging
 void put_control_data()
@@ -145,10 +143,7 @@ static EventGroupHandle_t xCommandEventGroup = NULL;
 // cmdProcTask ////////////////////////////////////////////////////
 static void cmdProcTask(void *pvParameters)
 {
-    void savenvs();
-    void set_led_brightness(uint8_t);
-    void auto_enable();
-    extern bool PWM_phase_sync;
+    extern volatile bool PWM_phase_sync;
 
     for (;;)
     {
@@ -475,7 +470,7 @@ esp_err_t put_command(control_msg_t *msg)
         if (saved.yaw_coeff > GYDIR_YAW_MIN)
             saved.yaw_coeff -= 0.001f;
         if (saved.yaw_coeff < GYDIR_YAW_MIN)
-            saved.yaw_coeff -= GYDIR_YAW_MIN;
+            saved.yaw_coeff = GYDIR_YAW_MIN;
         break;
 
     case bt_Ld_Default:

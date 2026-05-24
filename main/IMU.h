@@ -14,12 +14,9 @@ extern Tvector6d acc_offset; // offsets of IMU data
 extern volatile bool gy_auto_cal_done;
 extern float *pyaw_coeff;
 
-#define LOG_FORMAT_HEADER "time,steer,speed,accel_x"
-
 #define SV_FRQ 250 // [Hz] サーボ制御計算周期 = サーボ信号フレーム周期
 #define SAMPLE_RATE_HZ SV_FRQ
 #define SAMPLE_COUNT (3 * SAMPLE_RATE_HZ)
-#define BUFFER_SECONDS 1
 
 ////////////////////////////////////////////////////////////////
 // IMUの出力軸定義に基づいて、物理的意味に対応するマクロを定義する
@@ -30,18 +27,14 @@ extern float *pyaw_coeff;
 ////////////////////////////////////////////////////////////////
 
 // X軸（上向き）: 右旋回でマイナスが出るため反転「右旋回＝正」
-#define GY_YAW_RAW (acc.gx)                                // IMUの生データ
-#define GY_YAW (-(GY_YAW_RAW - acc_offset.GYOFFSET_YAW))   // 最新の値
+#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))   // 最新の値
 #define GY_YAW_P(pa) (-(pa->gx - acc_offset.GYOFFSET_YAW)) // 配列等から取出すときはこれで
 
 // Y軸（後向き）: 左傾斜でプラスが出るため反転「右傾斜＝正」
-#define GY_ROLL_RAW (acc.gy)
-#define GY_ROLL (-(GY_ROLL_RAW - acc_offset.GYOFFSET_ROLL))
+#define GY_ROLL (-(acc.gy - acc_offset.GYOFFSET_ROLL))
 #define GY_ROLL_P(pa) (-(pa->gy - acc_offset.GYOFFSET_ROLL))
 
 // Z軸（右向き）: 頭上げ＝正」そのまま
-#define GY_PITCH_RAW (acc.gz)
-#define GY_PITCH (GY_PITCH_RAW - acc_offset.GYOFFSET_PITCH)
 #define GY_PITCH_P(pa) (pa->gz - acc_offset.GYOFFSET_PITCH)
 
 // --- 以下、計算要素の紐付け ---
@@ -60,7 +53,6 @@ extern float *pyaw_coeff;
 
 #define GYDIR_YAW (*pyaw_coeff)
 #define GYDIR_ROLL 0.9996f
-#define GYDIR_PITCH 0.0f
 
 #define GYDIR_YAW_MIN (-0.02f)
 #define GYDIR_YAW_MAX (0.02f)

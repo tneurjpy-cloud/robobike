@@ -9,16 +9,6 @@ static const char *TAG = "main";
 ////////////////////////////////////////////////////////////////////////
 void app_main(void)
 {
-    void showTasks();
-    void webserver_start();
-    char *SysID();
-    void set_led_brightness(uint8_t);
-    void deepSleep(uint32_t msec);
-    void auto_disable();
-    void waitms(uint32_t);
-    bool isNms(uint32_t *lastNms, uint32_t Nms);
-    void userdeviceinit();
-
     int maxcount = 0;
     uint32_t lastdone;
     bool ShowTaskDone = false;

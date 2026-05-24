@@ -257,7 +257,6 @@ void waitms(uint32_t t)
 
 void userdeviceinit()
 {
-    void servo_init();
     gpio_config_t io_conf;
 
     nvs_init(); // nvs memory read

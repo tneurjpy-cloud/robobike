@@ -9,10 +9,7 @@ static const char TAG[] = "icm426xx";
 
 #define IMU_ADDR 0x68      // AD0 = GND
 #define PWR_MGMT0 0x1F     // Power management settings
-#define GYRO_DATA_X1 0x11  // Gyroscope X-axis high byte
-#define GYRO_DATA_X0 0x12  // Gyroscope X-axis low byte
 #define ACCEL_DATA_X1 0x0B // Accelerometer X-axis high byte
-#define ACCEL_DATA_X0 0x0C // Accelerometer X-axis low byte
 #define GYRO_CONFIG0 0x20  // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
 #define ACCEL_CONFIG0 0x21 //
 #define ACCEL_CONFIG1 0x22 //
@@ -20,15 +17,7 @@ static const char TAG[] = "icm426xx";
 
 #define WHO_AM_I 0x75             // Device ID register
 #define ACC_LOPASS_NON 0x00       // ODR=1.6kHz=800Hz
-#define ACC_LOPASS_400HZ 0x01     //
-#define ACC_LOPASS_320HZ 0x02     //
-#define ACC_LOPASS_200HZ 0x03     //
-#define ACC_LOPASS_160HZ 0x04     //
-#define ACC_LOPASS_100HZ 0x05     //
-#define ACC_LOPASS_80HZ 0x06      //
 #define ACC_LOPASS_40HZ 0x07      //
-#define I2C_MASTER_NUM I2C_NUM_0  //
-#define I2C_MASTER_FREQ_HZ 200000 //
 #define I2C_MASTER_TIMEOUT 100    // msec
 
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500/dps
@@ -69,7 +58,7 @@ static void icm426xx_get_fs()
     ESP_LOGI(TAG, "Gyro FS=%d", data);
 }
 
-void read_who_am_i()
+static void read_who_am_i()
 {
     uint8_t who_am_i = 0;
     if (i2c_read(WHO_AM_I, &who_am_i, 1) == ESP_OK)

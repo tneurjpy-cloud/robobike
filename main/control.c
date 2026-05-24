@@ -86,8 +86,6 @@ void do_str_cmd_calc()
 
 void control_init()
 {
-    void waitms(uint32_t);
-
     // Check IR sensor install, avoid mirror
     gpio_set_level(IO_1, 1); // IR LED ON
     waitms(1);

@@ -15,8 +15,6 @@ typedef struct
 /// @brief  "http://192.168.4.1/FILENAME"
 static esp_err_t common_file_get_handler(httpd_req_t *req)
 {
-    void auto_disable();
-
     file_server_data_t *data = (file_server_data_t *)req->user_ctx;
     if (strcmp(req->uri, "/setup") == 0)
         saved.isChecked = true;
@@ -102,8 +100,6 @@ static const httpd_uri_t favicon = {
 /// @brief  "http://192.168.4.1/command?button=13"
 static esp_err_t command_handler(httpd_req_t *req)
 {
-    extern esp_err_t put_command(control_msg_t * msg);
-    char *get_edit_data();
     char query_buf[64];
     char val_str[32];
 
@@ -136,8 +132,6 @@ const httpd_uri_t command = {
 /// @brief  "http://192.168.4.1/get_acc"
 static esp_err_t get_acc_handler(httpd_req_t *req)
 {
-    extern char *get_control_data();
-
     char *p = get_control_data();
     httpd_resp_set_type(req, "text/csv; charset=UTF-8");
     httpd_resp_send(req, p, HTTPD_RESP_USE_STRLEN);

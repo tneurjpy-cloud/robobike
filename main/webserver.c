@@ -89,7 +89,6 @@ static void dhcp_set_captiveportal_url(void)
 /////////////////////////////////////////////////////////////////////////////
 void webserver_start()
 {
-    esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err);
     esp_log_level_set(TAG, ESP_LOG_INFO);
 
     ESP_ERROR_CHECK(esp_netif_init());

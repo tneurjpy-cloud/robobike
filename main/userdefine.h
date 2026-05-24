@@ -7,7 +7,7 @@ Copyright 2026.05.06 M.Tanaami
 #pragma once
 
 #define PROGVER 1031 // version for program
-#define DATAVER 1031 // version for saved data in NVS
+#define DATAVER 3 // version for saved data in NVS
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -93,7 +93,7 @@ typedef struct
     float gain_w_roll;    // delta = 1.0
     Tvector6d acc_offset; //
     Tvector6d acc_dir;    //
-    float str_diff_alph;  //
+    float str_diff_alph;  // alpha for low-pass filter of str_dev_diff
     int str0;             //
     int mot_spd;          //
     int ang_std_nut;      //
@@ -123,7 +123,6 @@ typedef enum // 自動旋回修正用状態定義
 #define RING_BUF_SIZE (SAMPLE_RATE_HZ * 5) // for data monitor
 #define CTL_DATA_BUFSIZE (65536)           //
 
-#define LEDHIGH 255
 #define LEDLOW 8
 #define SLEEP_DURATION_MS (10 * 60 * 1000UL) // n minuits to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
@@ -215,3 +214,23 @@ void wait_str_angle();
 void set_ex1_angle(float angle, float step); // angle in deg, step: /cycle
 void wait_ex1_angle();
 void savenvs();
+void showTasks(void);
+void webserver_start(void);
+char *SysID(void);
+void set_led_brightness(uint8_t brightness);
+void deepSleep(uint32_t ms);
+void auto_disable(void);
+void auto_enable(void);
+void waitms(uint32_t t);
+bool isNms(uint32_t *lastNms, uint32_t Nms);
+void userdeviceinit(void);
+void servo_init(void);
+void control_init(void);
+void do_str_cmd_calc(void);
+void put_control_data(void);
+esp_err_t put_command(control_msg_t *msg);
+char *get_edit_data(void);
+char *get_control_data(void);
+void str_pwm_out(float angle);
+esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err);
+

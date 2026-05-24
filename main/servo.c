@@ -34,7 +34,7 @@ const TSave savedefault = {
     12.0f,                                        // gain_w_roll;
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
     {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
-    0.950f,                                       // str_diff_alph
+    0.045f,                                       // str_diff_alph
     0,                                            // (int) steering angle neutral R= +deg
     60,                                           // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
     20,                                           // (int) stand for start
@@ -92,7 +92,7 @@ void set_str_cmd(float angle, float step)
     str_cmd0 = angle;
 }
 
-// servo control task
+// servo control task ///
 // set_str_cmd(angle) -> str_cmd0 -> str_cmd1 -> str_target -> str_cal
 static void str_easing()
 {
@@ -124,7 +124,7 @@ static void str_easing()
     }
 }
 
-/// servo control task
+/// servo control task ///
 // angle: deg -90/+90 ang + = right turn
 void str_pwm_out(float angle)
 {
@@ -209,17 +209,11 @@ void set_mot_duty(float duty, float step)
 {
     mot_cmd = duty;
     mot_step = step;
-    // timer_ON = false;
 }
 
 /// in ControlTask ///
 static void do_mot_out()
 {
-    // if (timer_ON && stoptime <= millis())
-    // {
-    //     set_mot_duty(0, 1500);
-    // }
-
     if (mot_step == 0.f)
     {
         mot_out = mot_cmd;
@@ -273,8 +267,6 @@ void chklimit(float *x, float max)
 // servo control task
 void gyroServiceLoop()
 {
-    void str_pwm_out(float);
-
     static float last_str_dev = 0.0f;
     static float str_diff_lps = 0.0f;
     float w_roll_dev, str_dev, str_dev_diff; // 偏差
@@ -286,8 +278,8 @@ void gyroServiceLoop()
         str_dev = str_target - str_out;                       // Steering deviation
         str_dev_diff = (str_dev - last_str_dev) * SV_FRQ;     // Rate of change in deviation
         str_diff_lps =                                        // Low-pass filter for derivative
-            saved.str_diff_alph * str_diff_lps                //
-            + (1.0f - saved.str_diff_alph) * str_dev_diff;    //
+            (1.0f - saved.str_diff_alph) * str_diff_lps       //
+            + saved.str_diff_alph * str_dev_diff;             //
         w_roll_cmd =                                          // Target roll velocity =
             str_dev * saved.gain_str                          //
             + str_diff_lps * saved.gain_str_diff;             // PD control: P*St + D*dSt
@@ -317,9 +309,6 @@ volatile bool PWM_phase_sync = true;
 // Task synchronized with the servo PWM signal
 static void ControlTask(void *pvParameters)
 {
-    void do_str_cmd_calc(); // control.c
-    void put_control_data();
-
     acc_offset = saved.acc_offset;
     for (;;)
     {
@@ -352,7 +341,6 @@ static bool IRAM_ATTR sync_timer_callback(gptimer_handle_t timer, const gptimer_
 /// initialization of servo control and Master Sync ///
 void servo_init()
 {
-    extern void control_init();
     pyaw_coeff = &saved.yaw_coeff;
 
     // LEDC setup for servo control
