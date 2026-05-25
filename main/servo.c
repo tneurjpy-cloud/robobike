@@ -30,7 +30,7 @@ const TSave savedefault = {
     0,                                            // (uint32_t) operation time in sec
     false,                                        // isChecked
     0.030f,                                       // gain_str;
-    0.040f,                                       // gain_str_diff
+    0.030f,                                       // gain_str_diff
     12.0f,                                        // gain_w_roll;
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
     {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
@@ -63,7 +63,7 @@ static ledc_channel_config_t svch_mot = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_DRV,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 600)};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 500)};
 
 static ledc_channel_config_t svch_str = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -81,7 +81,7 @@ static ledc_channel_config_t svch_ex1 = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_EX1,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1200)};
+    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1000)};
 
 ///////////////////////////////////////////////////////////////////
 /// in task web-server ///
