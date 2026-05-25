@@ -34,7 +34,7 @@ const TSave savedefault = {
     12.0f,                                        // gain_w_roll;
     {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
     {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
-    0.045f,                                       // str_diff_alph
+    0.040f,                                       // str_diff_alph
     0,                                            // (int) steering angle neutral R= +deg
     60,                                           // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
     20,                                           // (int) stand for start

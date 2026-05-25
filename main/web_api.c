@@ -195,9 +195,9 @@ static void cmdProcTask(void *pvParameters)
                 {
                     if (str_target != 0.f)
                     {
-                        set_str_cmd(0.0f, saved.str_cmd_speed / (float)SV_FRQ);
+                        set_str_cmd(0.0f, 60.0f / (float)SV_FRQ);
                         wait_str_angle();
-                        vTaskDelay(pdMS_TO_TICKS(200));
+                        vTaskDelay(pdMS_TO_TICKS(100));
                     }
                     set_str_cmd(-STR_STOP, 1.0f);                         // 左舵
                     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
