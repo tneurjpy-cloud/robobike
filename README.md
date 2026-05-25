@@ -9,9 +9,10 @@ ESP-IDF components and tools paths depend on installation location
 * Change Log  
 ```text
 Date        CODE    DATA    Description
-2026.05.19  1030    1022    Chg. Axis polarity inversion / No use GPIO Int. for Task
-                            Dbg. Monitor.html  
-2026.05.06  1029    1022    Chg. 3ms 1-shot soft timer -> 4ms espTimer / STR cmd Polarity +: left
+2026.05.26  1031       4    Chg: Servo PWM Rising Times. Lo-pass filter T
+2026.05.19  1030    1022    Chg: Axis polarity inversion / No use GPIO Int. for Task
+                            Dbg: Monitor.html  
+2026.05.06  1029    1022    Chg: 3ms 1-shot soft timer -> 4ms espTimer / STR cmd Polarity +: left
                             Add: Ota, Data monitor.
                             Chg: esp-idf v5.4.1-->> v6.0.1
 2026.04.07  1028    1022    Add: WiFi AP Ch. randomize
@@ -85,4 +86,10 @@ Please install the ESP-IDF extension in VS Code before building this project.
         CSV file : partitions.csv  
     configUSE_TRACE_FACILITY : checked  
     configGENERATE_RUN_TIME_STATS : checked  
+* For debug with GDB, delete "launch.json"
+        Full Clean
+        Slelect Target to esp32c3
+        Select COM port, Build and flash
+        OpenOCD Server
+        Sel "Eclipse CDT..."
 -----------------------------------------------------------  

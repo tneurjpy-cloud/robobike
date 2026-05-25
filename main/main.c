@@ -56,7 +56,7 @@ void app_main(void)
             {
                 deepSleep(0);
             }
-            if (!ShowTaskDone)
+            if (!ShowTaskDone) // 起動1分後にタスクの状態を表示する
             {
                 ShowTaskDone = true;
                 showTasks();

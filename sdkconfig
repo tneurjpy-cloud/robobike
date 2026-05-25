@@ -1091,7 +1091,8 @@ CONFIG_GPTIMER_OBJ_CACHE_SAFE=y
 #
 # ESP-Driver:I2C Configurations
 #
-CONFIG_I2C_ISR_IRAM_SAFE=y
+# default:
+# CONFIG_I2C_ISR_IRAM_SAFE is not set
 # default:
 # CONFIG_I2C_ENABLE_DEBUG_LOG is not set
 # default:
