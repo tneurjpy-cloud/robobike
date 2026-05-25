@@ -5,6 +5,7 @@
     esp32c3 default nvs size=0x5000
 ///////////////////////////////////////////////////////////////////////////////////*/
 #include "userdefine.h"
+#include "esp_brownout.h"
 
 static const char TAG[] = "userdevice";
 // deviation 偏差
@@ -14,9 +15,15 @@ int pcbver = 0;
 volatile uint32_t userLastControlTime = 0; // for sleep check counter
 volatile uint32_t startTime;
 
-// static char *NVSserial = "nvs_serial";
 #define SAVETYPE TSave
 static const char *NVSname = "nvs_data";
+static volatile bool can_NVS_write = true;
+
+/////////////////////////////////////////////////////////////////////////////////////
+void IRAM_ATTR brownout_callback(void)
+{
+    can_NVS_write = false;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////
 /* Standard CRC-32 (Ethernet, PNG, ZIP, etc.) - LSB First */
@@ -60,6 +67,11 @@ char *SysID()
 void savenvs()
 {
     nvs_handle_t hNVS;
+
+    if (!can_NVS_write)
+    {
+        return;
+    }
 
     saved.ver = DATAVER;
     saved.op_time_s = startTime + millis() / 1000; // update operation time in seconds
@@ -259,6 +271,7 @@ void userdeviceinit()
 {
     gpio_config_t io_conf;
 
+    esp_brownout_register_callback(brownout_callback);
     nvs_init(); // nvs memory read
 
     // IO10 Servo EN
