@@ -124,7 +124,7 @@ typedef enum // 自動旋回修正用状態定義
 #define CTL_DATA_BUFSIZE (65536)           //
 
 #define LEDLOW 8
-#define SLEEP_DURATION_MS (10 * 60 * 1000UL) // n minuits to sleep
+#define SLEEP_DURATION_MS (30 * 60 * 1000UL) // 30 minutes to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
 
 extern float mot_cmd;    // -100 <> +100%

@@ -13,6 +13,6 @@
     "--query-driver=**",
     "--compile-commands-dir=d:\\ESPIDF\\robobike\\build"
   ],
-  "idf.portWin": "COM11",
+  "idf.portWin": "COM5",
   "idf.flashType": "UART"
 }

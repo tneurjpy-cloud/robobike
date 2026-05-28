@@ -72,7 +72,7 @@ graph TD
 
 This project is based on "Captive Portal Example".  
 Development should be done using ESP-IDF v6.0  
-Please install the ESP-IDF extension in VS Code before building this project.  
+Please install the ESP-IDF extension in VS-Code before building this project.  
   
 * How to set up IntelliSense in VS Code:  
 (1) Install the ESP-IDF Extension.  
@@ -88,7 +88,7 @@ Please install the ESP-IDF extension in VS Code before building this project.
     configGENERATE_RUN_TIME_STATS : checked  
 * For debug with GDB, delete "launch.json"
         Full Clean
-        Slelect Target to esp32c3
+        Slelect Target to esp32c3 via USB JTAG
         Select COM port, Build and flash
         OpenOCD Server
         Sel "Eclipse CDT..."

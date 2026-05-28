@@ -311,16 +311,16 @@ static void ControlTask(void *pvParameters)
 {
     acc_offset = saved.acc_offset;
     for (;;)
-    {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // Wait for Notify from sync_timer callback
-        gpio_set_level(IO_1, 1);                 // IR LED ON
-        gyroServiceLoop();
-        gpio_set_level(IO_1, 0); // IR LED OFF
-        put_control_data();
-        do_ex1_out();
-        do_mot_out();
-        do_str_cmd_calc();
-        str_easing();
+    { // Wait for Notify from sync_timer callback
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        gpio_set_level(IO_1, 1);       // IR LED ON
+        gyroServiceLoop();             // Read IMU, calc control, update servo outputs
+        put_control_data();            // Send control data to web-server task
+        do_ex1_out();                  // Side Stand calc.
+        do_mot_out();                  // Motor drive calc.
+        do_str_cmd_calc();             // Area detection calc.
+        str_easing();                  // Easing for steering command
+        gpio_set_level(IO_1, 0);       // IR LED OFF
     }
 }
 

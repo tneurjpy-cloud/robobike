@@ -103,7 +103,7 @@ bool IMU_getZero()
         gysum.gy += acc.gy;
         gysum.gz += acc.gz;
         gyavecount++;
-        if (gyavecount >= SAMPLE_COUNT) // get 5sec average
+        if (gyavecount >= SAMPLE_COUNT) // get nsec average
         {                               // calc average
             res = true;
             acc_offset.gx = gysum.gx / SAMPLE_COUNT;
@@ -115,7 +115,7 @@ bool IMU_getZero()
         }
     }
     else
-    { // detect noise
+    { // detect noise, big movement, and reset the average
         gyavecount = 0;
         gysum = (Tvector6d){0, 0, 0, 0, 0, 0};
     }
