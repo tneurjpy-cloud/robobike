@@ -27,7 +27,7 @@ void app_main(void)
     for (;;)
     {
         waitms(100);
-        if (auto_en && (str_out >= (STRMAX - 1) || str_out <= -(STRMAX - 1)))
+        if (auto_en && (str_out >= (STRMAX - 2) || str_out <= -(STRMAX - 2)))
         {
             if (maxcount >= 2)
             {

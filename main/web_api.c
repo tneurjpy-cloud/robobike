@@ -172,7 +172,8 @@ static void cmdProcTask(void *pvParameters)
                 else // start on stop
                 {    // down the stand slowly, motor on, up the stand
                     auto_disable();
-                    PWM_phase_sync = true; // 位相が時折狂うため、発進時にリセットをかける                   set_led_brightness(LEDHIGH);
+                    set_led_brightness(LEDHIGH);
+                    PWM_phase_sync = true; // 位相が時折狂うため、発進時にリセットをかける
                     set_str_cmd(0.0f, 0.0f);
                     set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
                     wait_ex1_angle();
@@ -285,6 +286,7 @@ esp_err_t put_command(control_msg_t *msg)
             return res;
         }
     }
+    // ここまで来たらMutexを取れている
     xSemaphoreGive(xMutex);
     ESP_LOGI(TAG, "put cmd= %d", (int)msg->id);
 
@@ -318,10 +320,12 @@ esp_err_t put_command(control_msg_t *msg)
         if (mot_out == 0) // 停止中
         {
             set_mot_duty(MOT_SPEED_BACK, (40.0f / SV_FRQ));
+            set_led_brightness(LEDHIGH);
         }
         else if (mot_out < 0)
         {
             set_mot_duty(0.0f, (40.0f / SV_FRQ));
+            set_led_brightness(LEDLOW);
         }
         break;
 

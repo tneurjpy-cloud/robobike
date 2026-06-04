@@ -9,6 +9,7 @@ ESP-IDF components and tools paths depend on installation location
 * Change Log  
 ```text
 Date        CODE    DATA    Description
+2026.06.05  1032       4    Dbg: LED control
 2026.05.26  1031       4    Chg: Servo PWM Rising Times. Lo-pass filter T
 2026.05.19  1030    1022    Chg: Axis polarity inversion / No use GPIO Int. for Task
                             Dbg: Monitor.html  
@@ -87,9 +88,9 @@ Please install the ESP-IDF extension in VS-Code before building this project.
     configUSE_TRACE_FACILITY : checked  
     configGENERATE_RUN_TIME_STATS : checked  
 * For debug with GDB, delete "launch.json"
-        Full Clean
-        Slelect Target to esp32c3 via USB JTAG
-        Select COM port, Build and flash
-        OpenOCD Server
-        Sel "Eclipse CDT..."
+    Full Clean
+    Slelect Target to esp32c3 via USB JTAG
+    Select COM port, Build and flash
+    Power down the target and perform a complete system reboot.
+    OpenOCD Server, select "Eclipse CDT..."
 -----------------------------------------------------------  

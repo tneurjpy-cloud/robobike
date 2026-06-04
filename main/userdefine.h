@@ -1,12 +1,12 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-Copyright 2026.05.25 M.Tanaami
+Copyright 2026.06.05 M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
-#define PROGVER 1031 // version for program
+#define PROGVER 1032 // version for program
 #define DATAVER 4 // version for saved data in NVS
 
 #include <stdint.h>
@@ -123,6 +123,7 @@ typedef enum // 自動旋回修正用状態定義
 #define RING_BUF_SIZE (SAMPLE_RATE_HZ * 5) // for data monitor
 #define CTL_DATA_BUFSIZE (65536)           //
 
+#define LEDHIGH 255
 #define LEDLOW 8
 #define SLEEP_DURATION_MS (30 * 60 * 1000UL) // 30 minutes to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
@@ -218,6 +219,7 @@ void showTasks(void);
 void webserver_start(void);
 char *SysID(void);
 void set_led_brightness(uint8_t brightness);
+uint8_t get_led_brightness();
 void deepSleep(uint32_t ms);
 void auto_disable(void);
 void auto_enable(void);
