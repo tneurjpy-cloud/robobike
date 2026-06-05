@@ -141,7 +141,7 @@ void wait_str_angle()
     ESP_LOGI(TAG, "wait str");
     while (str_target != str_cmd1)
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
+        waitTaskms(10);
     }
     ESP_LOGI(TAG, "wait str end");
 }
@@ -161,7 +161,7 @@ void wait_ex1_angle()
     ESP_LOGI(TAG, "wait ex1");
     while (ex1_cmd != ex1_out)
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
+        waitTaskms(10);
     }
     ESP_LOGI(TAG, "wait end");
 }
@@ -198,7 +198,7 @@ void wait_mot_duty()
 {
     while (mot_cmd != mot_out)
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
+        waitTaskms(10);
     }
 }
 

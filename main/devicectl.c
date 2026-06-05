@@ -239,16 +239,20 @@ static void init_led_pwm(void)
     ledc_channel_config(&ledc_channel);
 }
 
+// brightness: 0〜255
 void set_led_brightness(uint8_t brightness)
 {
-    // brightness: 0〜255
     ledc_set_duty(LED_MODE, LED_CHANNEL, brightness);
     ledc_update_duty(LED_MODE, LED_CHANNEL);
 }
 
+uint8_t get_led_brightness()
+{
+    return ledc_get_duty(LED_MODE, LED_CHANNEL);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // wait milisec
-// CONFIG_FREERTOS_HZ=1000   in "sdkconfig" for 1ms delay
 // !! Only use in main task !!
 void waitms(uint32_t t)
 {
@@ -256,12 +260,13 @@ void waitms(uint32_t t)
 
     do
     {
-        vTaskDelay(pdMS_TO_TICKS(10));
+        waitTaskms(10);
         if (gy_auto_cal_done)
         { // dim
+            uint8_t current_brightness = get_led_brightness();
             set_led_brightness(0);
-            vTaskDelay(pdMS_TO_TICKS(100));
-            set_led_brightness(LEDLOW);
+            waitTaskms(100);
+            set_led_brightness(current_brightness);
             gy_auto_cal_done = false;
         }
     } while ((millis() - start) < t);

@@ -140,7 +140,7 @@ static esp_err_t ota_post_handler(httpd_req_t *req)
     httpd_resp_send(req, "Success", HTTPD_RESP_USE_STRLEN);
 
     // Wait a moment for the response to be sent, then restart
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    waitTaskms(1000);
     esp_restart();
 
     return ESP_OK;

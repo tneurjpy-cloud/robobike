@@ -71,24 +71,21 @@ void compute_roll_axis_direction(Tvector6d *data, int count)
     }
 }
 
-// Calibrate independently 5sec to do this
+// Calibrate independently 3sec to do this
 void calibrate_roll()
 {
-    { // get memory using flag
-        vTaskDelay(pdMS_TO_TICKS(5));
-    }
     getZeroDoing = true;
     for (int i = 0; i < SAMPLE_COUNT; i++) // sample data
     {
-        IMU_getGyro();
+        IMU_roll();
         gyro_data[i] = gy;
-        vTaskDelay(pdMS_TO_TICKS(1000 / SAMPLE_RATE_HZ));
+        waitTaskms(1000);
     }
     getZeroDoing = false;
 }
 #endif
 
-// 自動制御offの時、5msごとに呼び出してゼロ点較正
+// 自動制御offの時、10msごとに呼び出してゼロ点較正
 bool IMU_getZero()
 {
     static int gyavecount = 0;

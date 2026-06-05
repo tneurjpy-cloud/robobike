@@ -164,7 +164,7 @@ void icm426xx_init()
     ESP_ERROR_CHECK(i2c_master_bus_rm_device(dev_handle));
     ESP_ERROR_CHECK(i2c_del_master_bus(bus_handle));
     
-    vTaskDelay(pdMS_TO_TICKS(100)); // 2026.03.29 ADD
+    waitTaskms(100); // 2026.03.29 ADD
 
     i2c_master_bus_config_t bus_configas = {
         .clk_source = I2C_CLK_SRC_DEFAULT,

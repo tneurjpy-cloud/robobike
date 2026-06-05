@@ -2,6 +2,21 @@
 
 static const char *TAG = "web_api";
 
+// 名前変換関数を定義
+const char *cmdID_to_str(TcmdID id)
+{
+    switch (id)
+    {
+#define AS_STRING(name) \
+    case name:          \
+        return #name;
+        COMMAND_LIST(AS_STRING)
+#undef AS_STRING
+    default:
+        return "unknown";
+    }
+}
+
 char *get_edit_data()
 {
     static char rescsv[128];
@@ -152,7 +167,7 @@ static void cmdProcTask(void *pvParameters)
         if (xQueueReceive(control_queue, &id, portMAX_DELAY) == pdPASS)
         { // do commands
             xSemaphoreTake(xMutex, pdMS_TO_TICKS(100));
-            ESP_LOGI(TAG, "Task command= %d", id);
+            ESP_LOGI(TAG, "Task command= %s", cmdID_to_str(id));
             switch (id)
             {
             case stp_all:
@@ -172,7 +187,8 @@ static void cmdProcTask(void *pvParameters)
                 else // start on stop
                 {    // down the stand slowly, motor on, up the stand
                     auto_disable();
-                    PWM_phase_sync = true; // 位相が時折狂うため、発進時にリセットをかける                   set_led_brightness(LEDHIGH);
+                    set_led_brightness(LEDHIGH);
+                    PWM_phase_sync = true; // 位相が時折狂うため、発進時にリセットをかける
                     set_str_cmd(0.0f, 0.0f);
                     set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
                     wait_ex1_angle();
@@ -197,26 +213,27 @@ static void cmdProcTask(void *pvParameters)
                     {
                         set_str_cmd(0.0f, 60.0f / (float)SV_FRQ);
                         wait_str_angle();
-                        vTaskDelay(pdMS_TO_TICKS(100));
+                        waitTaskms(100);
                     }
                     set_str_cmd(-STR_STOP, 1.0f);                         // 左舵
                     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
-                    vTaskDelay(pdMS_TO_TICKS(400));
+                    waitTaskms(400);
                     auto_disable();
                     set_str_cmd(STR_STOP, 0.0f);
                     set_mot_duty(0.0f, 4.0f);
-                    vTaskDelay(pdMS_TO_TICKS(400));
+                    waitTaskms(400);
                     set_led_brightness(LEDLOW);
                 }
                 else
                 {
                     set_mot_duty(0.0f, 0.0f);
+                    set_led_brightness(LEDLOW);
                 }
                 set_str_cmd(0.0f, 0.0f);
 
                 if (s)
                 {
-                    vTaskDelay(pdMS_TO_TICKS(50));
+                    waitTaskms(50);
                     savenvs();
                 }
                 break;
@@ -227,14 +244,14 @@ static void cmdProcTask(void *pvParameters)
                 while (ex1_out > ex1_cmd)
                 {
                     ESP_LOGI(TAG, "az=%f", LATERAL_G);
-                    vTaskDelay(pdMS_TO_TICKS(20));
+                    waitTaskms(20);
                     if (ex1_out <= ex1_cmd)
                     {
                         break;
                     }
                     else if (LATERAL_G <= 0.5f)
                     {
-                        vTaskDelay(pdMS_TO_TICKS(40));
+                        waitTaskms(40);
                         if (LATERAL_G <= 0.5f)
                         {
                             break;
@@ -285,8 +302,9 @@ esp_err_t put_command(control_msg_t *msg)
             return res;
         }
     }
+    // ここまで来たらMutexを取れている
     xSemaphoreGive(xMutex);
-    ESP_LOGI(TAG, "put cmd= %d", (int)msg->id);
+    ESP_LOGI(TAG, "put cmd= %s", cmdID_to_str(msg->id));
 
     switch (msg->id)
     { // 即座に帰るべきコマンドはこの関数内で処理
@@ -318,10 +336,12 @@ esp_err_t put_command(control_msg_t *msg)
         if (mot_out == 0) // 停止中
         {
             set_mot_duty(MOT_SPEED_BACK, (40.0f / SV_FRQ));
+            set_led_brightness(LEDHIGH);
         }
         else if (mot_out < 0)
         {
             set_mot_duty(0.0f, (40.0f / SV_FRQ));
+            set_led_brightness(LEDLOW);
         }
         break;
 
