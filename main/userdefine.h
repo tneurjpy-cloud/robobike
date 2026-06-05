@@ -7,11 +7,7 @@ Copyright 2026.06.05 M.Tanaami
 #pragma once
 
 #define PROGVER 1032 // version for program
-<<<<<<< HEAD
 #define DATAVER 4    // version for saved data in NVS
-=======
-#define DATAVER 4 // version for saved data in NVS
->>>>>>> ebc98efa1e17eb97453bb0284e1236425478b1d6
 
 #include <stdint.h>
 #include <stdbool.h>

@@ -265,11 +265,7 @@ void waitms(uint32_t t)
         { // dim
             uint8_t current_brightness = get_led_brightness();
             set_led_brightness(0);
-<<<<<<< HEAD
             waitTaskms(100);
-=======
-            vTaskDelay(pdMS_TO_TICKS(100));
->>>>>>> ebc98efa1e17eb97453bb0284e1236425478b1d6
             set_led_brightness(current_brightness);
             gy_auto_cal_done = false;
         }
