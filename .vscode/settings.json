@@ -1,10 +1,6 @@
 {
   "idf.currentSetup": "C:\\esp\\v6.0.1\\esp-idf",
-<<<<<<< HEAD
   "idf.portWin": "COM4",
-=======
-  "idf.portWin": "COM5",
->>>>>>> ebc98efa1e17eb97453bb0284e1236425478b1d6
   "idf.flashType": "UART",
   "idf.openOcdConfigs": [
     "board/esp32c3-builtin.cfg"
