@@ -18,6 +18,7 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 8px;
+            width: 100%;
         }
 
         button {
@@ -28,6 +29,7 @@
             padding: 6px 12px;
             font-weight: bold;
             border-radius: 4px;
+            flex-shrink: 0; /* ボタンが潰れないように固定 */
         }
 
         #downloadBtn {
@@ -39,41 +41,53 @@
             color: #888;
         }
 
+        select {
+            padding: 4px;
+            border-radius: 4px;
+            flex-shrink: 0; /* セレクトボックスが潰れないように固定 */
+        }
+
+        /* ★ テーブル全体が画面右端からはみ出さないように自動縮小する設定 */
         #valueTable {
             border-collapse: collapse;
             font-family: "Consolas", monospace;
             background: #000;
+            flex-grow: 1;          /* 残りの横幅をいっぱいに使う */
+            table-layout: fixed;   /* セル幅を均等に固定してはみ出しを防ぐ */
+            width: 100%;
+            max-width: calc(100% - 250px); /* 左側のボタン類のスペースを確保 */
         }
 
         #valueTable td {
             border: 1px solid #333;
-            padding: 4px 10px;
+            padding: 2px 4px;      /* セル内の余白を少し詰めて凝縮 */
             height: 32px;
+            overflow: hidden;      /* 万が一文字が溢れてもレイアウトを崩さない */
+            white-space: nowrap;   /* 文字の自動改行を禁止 */
         }
 
         .cell-content {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 3px;
         }
 
         input[type="checkbox"] {
             margin: 0;
             cursor: pointer;
-            width: 15px;
-            height: 15px;
+            width: 14px;
+            height: 14px;
         }
 
         .label-text {
-            font-size: 16px;
+            font-size: 13px;       /* 項目名（文字）を少し小さく */
             font-weight: bold;
         }
 
         .num-cell {
             text-align: right;
-            min-width: 85px;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 15px;       /* 数値の文字サイズを調整 */
         }
 
         canvas {
@@ -89,9 +103,9 @@
         <button onclick="togglePause()" id="pauseBtn">PAUSE</button>
         <button onclick="downloadCSV()" id="downloadBtn" disabled>Save CSV</button>
         <select id="scaleSelect" style="padding: 4px; border-radius: 4px;">
-            <option value="0.25">x0.5</option> <!-- 旧0.5を0.25に変更 -->
-            <option value="0.5" selected>x1.0</option> <!-- 旧1.0を0.5に変更 -->
-            <option value="1.0">x2.0</option> <!-- 旧2.0を1.0に変更 -->
+            <option value="0.25">x0.5</option>
+            <option value="0.5" selected>x1.0</option>
+            <option value="1.0">x2.0</option>
         </select>
         <table id="valueTable">
             <tr id="tableRow"></tr>
@@ -100,15 +114,22 @@
     <canvas id="canvas"></canvas>
 
     <script>
-        const MON_CSV_KEYS = ["HEADER", "TIME_MS", "SV_DRV", "SV_STR", "SV_STD", "GY_ROLL", "GY_YAW", "GY_PITCH"];
-        const colors = [null, null, "#ff4444", "#44ff44", "#4444ff", "#ffff44", "#ff44ff", "#ffffff"];
+        const MON_CSV_KEYS = [
+            "HEADER", "TIME_MS", "SV_DRV", "SV_STR", "SV_STD",
+            "GY_ROLL", "GY_YAW", "GY_PITCH", "ACC_X", "ACC_Y", "ACC_Z"
+        ];
+        // 加速度計(8,9,10)用のカラー（シアン、オレンジ、グレー）
+        const colors = [
+            null, null, "#ff4444", "#44ff44", "#4444ff",
+            "#ffff44", "#ff44ff", "#ffffff", "#00ffff", "#ffa500", "#aaaaaa"
+        ];
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const tableRow = document.getElementById('tableRow');
         let isPaused = false;
         let dataLog = [];
         let lastX = -1;
-        let lastY = new Array(8).fill(-1);
+        let lastY = new Array(11).fill(-1);
         const DOT_MS = 5;
 
         function resizeCanvas() {
@@ -138,11 +159,13 @@
                 const padding = 20;
                 const innerH = h - (padding * 2);
 
-                // スケール計算: サーボは100が端、ジャイロはその2倍
-                const servoScale = userScale * (innerH / 200);
-                const gyroScale = servoScale * 2;
+                // 各系統のベーススケール計算
+                const servoScale = userScale * (innerH / 200); // 100で端に到達
+                const gyroScale = servoScale * 2;              // 50で端に到達
 
-                // ラベル用の最大値（スケールに連動）
+                // 【独立設定】±20 m/s2 の範囲が画面の有効範囲（innerH / 2）にピッタリ収まる固定倍率
+                const accScale = (innerH / 2) / 20.0;
+
                 const maxVal = 100 / userScale;
 
                 lines.forEach(line => {
@@ -157,12 +180,22 @@
                     ctx.fillStyle = "#000";
                     ctx.fillRect(nextX, 0, 6, h);
 
-                    for (let i = 2; i < 8; i++) {
+                    for (let i = 2; i < 11; i++) {
+                        if (p[i] === undefined) { lastY[i] = -1; continue; }
                         if (!document.getElementById('chk-' + i).checked) {
                             lastY[i] = -1; continue;
                         }
                         const val = parseFloat(p[i]);
-                        const currentScale = (i >= 5) ? gyroScale : servoScale;
+
+                        let currentScale;
+                        if (i >= 8) {
+                            currentScale = accScale;     // 加速度用 (±20m/s2固定)
+                        } else if (i >= 5) {
+                            currentScale = gyroScale;    // ジャイロ用
+                        } else {
+                            currentScale = servoScale;   // サーボ用
+                        }
+
                         const nextY = midY - (val * currentScale);
 
                         if (lastX !== -1 && lastY[i] !== -1 && nextX > lastX) {
@@ -192,8 +225,8 @@
                     lastX = nextX;
                 });
 
-                // グリッド線とラベル描画（常に上下端に配置）
-                [maxVal, 0, -maxVal].forEach(v => {
+                // 背景グリッドと目盛りの描画
+                [maxVal, 0, -maxVal].forEach((v, index) => {
                     const yPos = midY - (v * servoScale);
 
                     ctx.strokeStyle = (v === 0) ? "#666" : "#222";
@@ -204,24 +237,32 @@
                     ctx.stroke();
 
                     ctx.fillStyle = "rgba(0,0,0,0.8)";
-                    ctx.fillRect(5, Math.floor(yPos) - 12, 160, 24);
+                    ctx.fillRect(5, Math.floor(yPos) - 12, 280, 24);
 
                     ctx.fillStyle = "#ff4444";
                     ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), 10, Math.floor(yPos) + 6);
 
                     ctx.fillStyle = "#ffff44";
-                    // ジャイロは振幅2倍のため、ラベル値は実際の値の半分（端の目盛り）
                     ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
+
+                    // 【変更】グリッド線上（上端、中央、下端）に対応する m/s2 を直接表示
+                    ctx.fillStyle = "#00ffff";
+                    let accLabelVal = 0.0;
+                    if (index === 0) accLabelVal = 20.0;
+                    if (index === 2) accLabelVal = -20.0;
+                    
+                    ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", 160, Math.floor(yPos) + 6);
                 });
 
                 const last = lines[lines.length - 1].split(',');
-                for (let i = 2; i < 8; i++) {
+                for (let i = 2; i < 11; i++) {
                     const val = parseFloat(last[i]);
-                    document.getElementById('val-' + i).innerText = isNaN(val) ? "---" : val.toFixed(2);
+                    const el = document.getElementById('val-' + i);
+                    if (el) el.innerText = isNaN(val) ? "---" : val.toFixed(2);
                 }
             } catch (e) { }
         }
-        
+
         function downloadCSV() {
             const now = new Date();
             const yyyy = now.getFullYear();
@@ -242,7 +283,7 @@
 
         MON_CSV_KEYS.forEach((key, i) => {
             if (i < 2) return;
-            const isChecked = (key === "GY_PITCH") ? "" : "checked";
+            const isChecked = (key === "GY_PITCH" || key.startsWith("ACC_")) ? "" : "checked";
             const td = document.createElement('td');
             td.innerHTML = `
                 <div class="cell-content">

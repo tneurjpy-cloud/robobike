@@ -47,7 +47,6 @@ const TSave savedefault = {
 
 //// R/C servo pulse width making
 #define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ)) // LEDC_TIMER_14_BIT 2^14
-#define DELAYTIME_RISING 650                                  // us Delay time for rising edge
 
 static const ledc_timer_config_t servo_timer = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -63,7 +62,7 @@ static ledc_channel_config_t svch_mot = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_DRV,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 500)};
+    .hpoint = USEC2LEDCDUTY(500)};
 
 static ledc_channel_config_t svch_str = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -72,7 +71,7 @@ static ledc_channel_config_t svch_str = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_STR,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING)};
+    .hpoint = USEC2LEDCDUTY(0)};
 
 static ledc_channel_config_t svch_ex1 = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -81,7 +80,7 @@ static ledc_channel_config_t svch_ex1 = {
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_EX1,
     .duty = SERVO_NEUTRAL_DUTY,
-    .hpoint = USEC2LEDCDUTY(DELAYTIME_RISING + 1000)};
+    .hpoint = USEC2LEDCDUTY(1000)};
 
 ///////////////////////////////////////////////////////////////////
 /// in task web-server ///
@@ -304,7 +303,6 @@ void gyroServiceLoop()
 //// STR servo PWM rising edge trigger ////////////////////////////
 static TaskHandle_t xControlTaskHandle;
 static gptimer_handle_t sync_timer;
-volatile bool PWM_phase_sync = true;
 
 // Task synchronized with the servo PWM signal
 static void ControlTask(void *pvParameters)
@@ -313,28 +311,35 @@ static void ControlTask(void *pvParameters)
     for (;;)
     { // Wait for Notify from sync_timer callback
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        gpio_set_level(IO_1, 1);       // IR LED ON
-        gyroServiceLoop();             // Read IMU, calc control, update servo outputs
-        put_control_data();            // Send control data to web-server task
-        do_ex1_out();                  // Side Stand calc.
-        do_mot_out();                  // Motor drive calc.
-        do_str_cmd_calc();             // Area detection calc.
-        str_easing();                  // Easing for steering command
-        gpio_set_level(IO_1, 0);       // IR LED OFF
+        gpio_set_level(IO_1, 1); // IR LED ON
+        gyroServiceLoop();       // Read IMU, calc control, update servo outputs
+        put_control_data();      // Send control data to web-server task
+        do_ex1_out();            // Side Stand calc.
+        do_mot_out();            // Motor drive calc.
+        do_str_cmd_calc();       // Area detection calc.
+        str_easing();            // Easing for steering command
+        gpio_set_level(IO_1, 0); // IR LED OFF
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////
-/// Master Sync Callback ///
+/// GPTimer One-Shot Delay Callback (Executed 3000us after PWM rising) ///
 static bool IRAM_ATTR sync_timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
-    if (PWM_phase_sync)
-    {
-        ledc_timer_rst(LEDC_LOW_SPEED_MODE, LEDC_TIMER_0);
-        PWM_phase_sync = false;
-    }
-    vTaskNotifyGiveFromISR(xControlTaskHandle, NULL);
-    return true; // return true to auto-reload the timer
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    gptimer_stop(timer);
+    vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
+    return xHigherPriorityTaskWoken == pdTRUE;
+}
+
+////////////////////////////////////////////////////////////////////////////
+/// GPIO External Interrupt Handler (Triggered at PWM Rising Edge) ///
+static void IRAM_ATTR gpio_str_in_isr_handler(void *arg)
+{
+    // タイマーのカウントを0にリセットし、3000usのワンショット計測を開始
+    gptimer_set_raw_count(sync_timer, 0);
+    gptimer_start(sync_timer);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -352,32 +357,46 @@ void servo_init()
     control_init();
     xTaskCreate(ControlTask, "ControlTask", 2048, NULL, configMAX_PRIORITIES - 1, &xControlTaskHandle);
 
-    // initialize GPTIMER for Master Sync
+    // 1. Initialize GPIO_STR_IN for External Interrupt
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_POSEDGE,        // 立ち上がりエッジで割り込み
+        .pin_bit_mask = (1ULL << GPIO_STR_IN), // 対象のGPIOピン
+        .mode = GPIO_MODE_INPUT,               // 入力モード
+        .pull_down_en = GPIO_PULLDOWN_DISABLE, //
+        .pull_up_en = GPIO_PULLUP_DISABLE,     // 外部配線直結のためプルアップ/ダウンは無し
+    };
+    gpio_config(&io_conf);
+
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(GPIO_STR_IN, gpio_str_in_isr_handler, NULL);
+
+    // 2. Initialize GPTIMER as a One-Shot Delay Timer
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = 1000000, // 1MHz (1us単位)
-    };
-    gptimer_alarm_config_t alarm_config = {
-        .alarm_count = 1000000 / SV_FRQ,
-        .reload_count = 0,
-        .flags = {
-            .auto_reload_on_alarm = true, // ESP-IDF v6.x
-        },
+        .resolution_hz = 1000000, // 1MHz
     };
     gptimer_new_timer(&timer_config, &sync_timer);
+
+    gptimer_alarm_config_t alarm_config = {
+        .alarm_count = 3250, // delay time
+        .reload_count = 0,
+        .flags = {
+            .auto_reload_on_alarm = false,
+        },
+    };
     gptimer_set_alarm_action(sync_timer, &alarm_config);
+
     gptimer_event_callbacks_t cbs = {
         .on_alarm = sync_timer_callback,
     };
     gptimer_register_event_callbacks(sync_timer, &cbs, NULL);
     gptimer_enable(sync_timer);
-    gptimer_start(sync_timer);
 
     // Set initial servo positions and disable outputs
     auto_disable();
     str_pwm_out(0);
     set_mot_duty(0, 0.0f);
     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f);
-    ESP_LOGI(TAG, "Servo initialized with INTERNAL MASTER SYNC mode.");
+    ESP_LOGI(TAG, "Servo initialized with EXTERNAL HARDWARE SYNC mode.");
 }

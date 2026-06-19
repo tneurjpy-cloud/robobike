@@ -118,16 +118,19 @@ char *get_control_data()
         "GY_ROLL",  // 5
         "GY_YAW",   // 6
         "GY_PITCH", // 7
+        "ACC_X",    // 8
+        "ACC_Y",    // 9
+        "ACC_Z",    // 10
     ];
     */
     buf[0] = '\0';
     while (index_r != index_w)
     {
-        char item_buf[96];
+        char item_buf[128];
         Tlogvector *p = &ring_buffer[index_r];
         Tvector6d *pa = &p->acc;
         int len = snprintf(item_buf, sizeof(item_buf),
-                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
                            'a',
                            p->time,
                            p->drv,
@@ -135,7 +138,10 @@ char *get_control_data()
                            p->std,
                            GY_ROLL_P(pa),
                            GY_YAW_P(pa),
-                           GY_PITCH_P(pa));
+                           GY_PITCH_P(pa),
+                           ACC_X(pa),
+                           ACC_Y(pa),
+                           ACC_Z(pa));
         if (strlen(buf) + len + 1 > sizeof(buf)) // check buf length
         {
             break;
@@ -158,8 +164,6 @@ static EventGroupHandle_t xCommandEventGroup = NULL;
 // cmdProcTask ////////////////////////////////////////////////////
 static void cmdProcTask(void *pvParameters)
 {
-    extern volatile bool PWM_phase_sync;
-
     for (;;)
     {
         TcmdID id; // Do not use msg.req.
@@ -188,7 +192,6 @@ static void cmdProcTask(void *pvParameters)
                 {    // down the stand slowly, motor on, up the stand
                     auto_disable();
                     set_led_brightness(LEDHIGH);
-                    PWM_phase_sync = true; // 位相が時折狂うため、発進時にリセットをかける
                     set_str_cmd(0.0f, 0.0f);
                     set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
                     wait_ex1_angle();
@@ -219,7 +222,7 @@ static void cmdProcTask(void *pvParameters)
                     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
                     waitTaskms(400);
                     auto_disable();
-                    set_str_cmd(STR_STOP, 0.0f);
+                    set_str_cmd(STR_STOP, 2.0f);
                     set_mot_duty(0.0f, 4.0f);
                     waitTaskms(400);
                     set_led_brightness(LEDLOW);

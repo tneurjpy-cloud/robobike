@@ -5707,7 +5707,7 @@
 		)
 		(uuid "f455c025-ba3a-4edb-80c2-b067e547cf3f")
 	)
-	(text "IO20\nIO21\nIO0\nGND\n\nSOLDER CONNECT"
+	(text "IO20\nIO21\n3V3\nGND\n\nSOLDER CONNECT"
 		(exclude_from_sim no)
 		(at 22.225 173.99 0)
 		(effects

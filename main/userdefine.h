@@ -112,13 +112,13 @@ typedef enum // 自動旋回修正用状態定義
 } TRunState;
 
 #define STRMAX 65
-#define STR_STOP 35
+#define STR_STOP 40
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
 #define EX1MAX 60
 #define EX1MIN (-10)
 #define STD_RUN 80
-#define STD_STD_NUT 14 // diff STD. - NUT.
+#define STD_STD_NUT 16 // diff STD. - NUT.
 
 #define RING_BUF_SIZE (SAMPLE_RATE_HZ * 5) // for data monitor
 #define CTL_DATA_BUFSIZE (65536)           //

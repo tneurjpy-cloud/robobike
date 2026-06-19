@@ -26,16 +26,22 @@ extern float *pyaw_coeff;
 // IMUの出力軸定義：右手座標系（右ネジの法則）へ統一
 ////////////////////////////////////////////////////////////////
 
-// X軸（上向き）: 右旋回でマイナスが出るため反転「右旋回＝正」
-#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))   // 最新の値
-#define GY_YAW_P(pa) (-(pa->gx - acc_offset.GYOFFSET_YAW)) // 配列等から取出すときはこれで
-
-// Y軸（後向き）: 左傾斜でプラスが出るため反転「右傾斜＝正」
+// X軸（前向き）: IMUが左傾斜で＋のため反転「右傾斜＝＋」
 #define GY_ROLL (-(acc.gy - acc_offset.GYOFFSET_ROLL))
-#define GY_ROLL_P(pa) (-(pa->gy - acc_offset.GYOFFSET_ROLL))
+#define GY_ROLL_P(p) (-(p->gy - acc_offset.GYOFFSET_ROLL))
 
-// Z軸（右向き）: 頭上げ＝正」そのまま
-#define GY_PITCH_P(pa) (pa->gz - acc_offset.GYOFFSET_PITCH)
+// Y軸（右向き）: 「頭上げ＝＋」　そのまま
+#define GY_PITCH (acc.gz - acc_offset.GYOFFSET_PITCH)
+#define GY_PITCH_P(p) (p->gz - acc_offset.GYOFFSET_PITCH)
+
+// Z軸（下向き）: IMUが左旋回で＋のため反転「右旋回＝＋」
+#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))       // 最新の値
+#define GY_YAW_P(p) (-(p->gx - acc_offset.GYOFFSET_YAW)) // 配列等から取出すときはこれで
+
+// 加速度計データ
+#define ACC_X(p) (-p->y) // head m/s2
+#define ACC_Y(p) (p->z)  // right
+#define ACC_Z(p) (-p->x) // down
 
 // --- 以下、計算要素の紐付け ---
 #define GY_YAW_ELM gx
