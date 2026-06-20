@@ -14,6 +14,17 @@ extern Tvector6d acc_offset; // offsets of IMU data
 extern volatile bool gy_auto_cal_done;
 extern float *pyaw_coeff;
 
+//////////////// icm426xx using ////////////////
+void icm426xx_init();
+void icm426xx_sleep();
+void icm426xx_start_read();
+void icm426xx_get_data(Tvector6d *pac);
+#define IMU_init() icm426xx_init()
+#define IMU_sleep() icm426xx_sleep()
+#define IMU_startRead() icm426xx_start_read()
+#define IMU_getData(p) icm426xx_get_data(p)
+////////////////////////////////////////////////
+
 #define SV_FRQ 250 // [Hz] サーボ制御計算周期 = サーボ信号フレーム周期
 #define SAMPLE_RATE_HZ SV_FRQ
 #define SAMPLE_COUNT (3 * SAMPLE_RATE_HZ)
@@ -26,20 +37,19 @@ extern float *pyaw_coeff;
 // IMUの出力軸定義：右手座標系（右ネジの法則）へ統一
 ////////////////////////////////////////////////////////////////
 
-// X軸（前向き）: IMUが左傾斜で＋のため反転「右傾斜＝＋」
+///////////// 角速度 (deg/s)
+// X軸（前向き）: 「右傾斜＝＋」 IMUが後向きのため反転
 #define GY_ROLL (-(acc.gy - acc_offset.GYOFFSET_ROLL))
 #define GY_ROLL_P(p) (-(p->gy - acc_offset.GYOFFSET_ROLL))
-
-// Y軸（右向き）: 「頭上げ＝＋」　そのまま
+// Y軸（右向き）: 「頭上げ＝＋」 そのまま
 #define GY_PITCH (acc.gz - acc_offset.GYOFFSET_PITCH)
 #define GY_PITCH_P(p) (p->gz - acc_offset.GYOFFSET_PITCH)
-
-// Z軸（下向き）: IMUが左旋回で＋のため反転「右旋回＝＋」
-#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))       // 最新の値
+// Z軸（下向き）: 「右旋回＝＋」 IMUが上向きのため反転
+#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))     // 最新の値
 #define GY_YAW_P(p) (-(p->gx - acc_offset.GYOFFSET_YAW)) // 配列等から取出すときはこれで
 
-// 加速度計データ
-#define ACC_X(p) (-p->y) // head m/s2
+//////////// 加速度 (m/s2)
+#define ACC_X(p) (-p->y) // head
 #define ACC_Y(p) (p->z)  // right
 #define ACC_Z(p) (-p->x) // down
 
@@ -63,9 +73,6 @@ extern float *pyaw_coeff;
 #define GYDIR_YAW_MIN (-0.02f)
 #define GYDIR_YAW_MAX (0.02f)
 
-void IMU_init();
 float IMU_roll();
-void IMU_startRead();
 float IMU_side_acc();
-void IMU_sleep();
 bool IMU_getZero();

@@ -46,7 +46,9 @@ const TSave savedefault = {
 };
 
 //// R/C servo pulse width making
-#define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ)) // LEDC_TIMER_14_BIT 2^14
+#define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ)) // 2^14 for 100% duty
+#define TIMER_RES_HZ 1000000                                  //
+#define ALARM_CNT (TIMER_RES_HZ / SV_FRQ - 750)               // delay time(usec)
 
 static const ledc_timer_config_t servo_timer = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -337,7 +339,6 @@ static bool IRAM_ATTR sync_timer_callback(gptimer_handle_t timer, const gptimer_
 /// GPIO External Interrupt Handler (Triggered at PWM Rising Edge) ///
 static void IRAM_ATTR gpio_str_in_isr_handler(void *arg)
 {
-    // タイマーのカウントを0にリセットし、3000usのワンショット計測を開始
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_start(sync_timer);
 }
@@ -374,12 +375,12 @@ void servo_init()
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = 1000000, // 1MHz
+        .resolution_hz = TIMER_RES_HZ,
     };
     gptimer_new_timer(&timer_config, &sync_timer);
 
     gptimer_alarm_config_t alarm_config = {
-        .alarm_count = 3250, // delay time
+        .alarm_count = ALARM_CNT,
         .reload_count = 0,
         .flags = {
             .auto_reload_on_alarm = false,

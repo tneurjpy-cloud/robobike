@@ -14,6 +14,7 @@
     "--query-driver=**",
     "--compile-commands-dir=d:\\ESPIDF\\robobike\\build"
   ],
+  "cmake.cmakePath": "C:\\Espressif\\tools\\cmake\\4.0.3\\bin\\cmake.exe",
   "cmake.configureOnOpen": false,
   "cmake.configureOnEdit": false
 }
