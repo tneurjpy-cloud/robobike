@@ -7,18 +7,20 @@
 #include "userdefine.h"
 static const char TAG[] = "icm426xx";
 
-#define IMU_ADDR 0x68      // AD0 = GND
-#define PWR_MGMT0 0x1F     // Power management settings
-#define ACCEL_DATA_X1 0x0B // Accelerometer X-axis high byte
-#define GYRO_CONFIG0 0x20  // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
-#define ACCEL_CONFIG0 0x21 //
-#define ACCEL_CONFIG1 0x22 //
-#define GYRO_CONFIG1 0x23  // [2,0] GYRO_UI_FILT_BW
+#define IMU_ADDR 0x68          // AD0 = GND
+#define PWR_MGMT0 0x1F         // Power management settings
+#define ACCEL_DATA_X1 0x0B     // Accelerometer X-axis high byte
+#define GYRO_CONFIG0 0x20      // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
+#define ACCEL_CONFIG0 0x21     //
+#define ACCEL_CONFIG1 0x22     //
+#define GYRO_CONFIG1 0x23      // [2,0] GYRO_UI_FILT_BW
+#define SIGNAL_PATH_RESET 0x02 // measure timing reset
+#define INTF_CONFIG0 0x35      // for endian change
 
-#define WHO_AM_I 0x75             // Device ID register
-#define ACC_LOPASS_NON 0x00       // ODR=1.6kHz=800Hz
-#define ACC_LOPASS_40HZ 0x07      //
-#define I2C_MASTER_TIMEOUT 100    // msec
+#define WHO_AM_I 0x75          // Device ID register
+#define ACC_LOPASS_NON 0x00    // ODR=1.6kHz=800Hz
+#define ACC_LOPASS_40HZ 0x07   //
+#define I2C_MASTER_TIMEOUT 100 // msec
 
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500/dps
 #define GRAVITY 9.80665f                    //
@@ -78,23 +80,28 @@ void icm426xx_sleep()
     i2c_write(PWR_MGMT0, &sleep_mode, 1);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////
-static uint8_t raw[12] = {0};
-static uint8_t addr[1] = {0};
-static volatile bool i2c_done = true;
-
-// call this to start reading
-void icm426xx_start_read()
+void icm426xx_resetDigitalpath()
 {
-    addr[0] = ACCEL_DATA_X1;
-    if (i2c_done)
-    {
-        i2c_done = false;
-        i2c_master_transmit_receive(dev_handle, addr, 1, raw, 12, 0);
-    }
+    static uint8_t flush_cmd = 0x04;
+
+    i2c_write(SIGNAL_PATH_RESET, &flush_cmd, 1);
+    esp_rom_delay_us(2);
 }
 
-// I2C end of read data
+///////////////////////////////////////////////////////////////////////////////////////////
+static uint8_t raw[12] = {0};
+static volatile bool i2c_done = true;
+
+//// call this to start reading
+void icm426xx_start_read()
+{
+    static uint8_t addr[1] = {ACCEL_DATA_X1};
+
+    i2c_done = false;
+    i2c_master_transmit_receive(dev_handle, addr, 1, raw, 12, 0);
+}
+
+//// I2C end of read data
 static bool IRAM_ATTR i2c_trans_done_callback(i2c_master_dev_handle_t dev_handle,
                                               const i2c_master_event_data_t *event_data,
                                               void *user_ctx)
@@ -103,24 +110,25 @@ static bool IRAM_ATTR i2c_trans_done_callback(i2c_master_dev_handle_t dev_handle
     return false;
 }
 
-// Call this after icm426xx_start_read()
+//// Call this after icm426xx_start_read()
 void icm426xx_get_data(Tvector6d *pac)
 {
     uint32_t timeout = 0;
 
-    while (!i2c_done && timeout < 2000)
-    { // timeout = 20ms
+    while (!i2c_done && timeout < 200)
+    { // timeout = 2ms
         esp_rom_delay_us(10);
         timeout++;
     }
-    pac->x = (int16_t)(((uint16_t)raw[0] << 8) | (uint16_t)raw[1]) * AC_SENSITIVITY;
-    pac->y = (int16_t)(((uint16_t)raw[2] << 8) | (uint16_t)raw[3]) * AC_SENSITIVITY;
-    pac->z = (int16_t)(((uint16_t)raw[4] << 8) | (uint16_t)raw[5]) * AC_SENSITIVITY;
-    pac->gx = (int16_t)(((uint16_t)raw[6] << 8) | (uint16_t)raw[7]) * GY_SENSITIVITY;
-    pac->gy = (int16_t)(((uint16_t)raw[8] << 8) | (uint16_t)raw[9]) * GY_SENSITIVITY;
-    pac->gz = (int16_t)(((uint16_t)raw[10] << 8) | (uint16_t)raw[11]) * GY_SENSITIVITY;
+    pac->x = *(int16_t *)&raw[0] * AC_SENSITIVITY;
+    pac->y = *(int16_t *)&raw[2] * AC_SENSITIVITY;
+    pac->z = *(int16_t *)&raw[4] * AC_SENSITIVITY;
+    pac->gx = *(int16_t *)&raw[6] * GY_SENSITIVITY;
+    pac->gy = *(int16_t *)&raw[8] * GY_SENSITIVITY;
+    pac->gz = *(int16_t *)&raw[10] * GY_SENSITIVITY;
 }
 
+///////////////////////////////////////////////////////////////////////////////////
 void icm426xx_init()
 {
     uint8_t cfg;
@@ -154,16 +162,18 @@ void icm426xx_init()
     cfg = ACC_LOPASS_40HZ; // 40Hz Lo-pass
     i2c_write(ACCEL_CONFIG1, &cfg, 1);
 
-    // --- Power ON (Accel + Gyro ON) ---
-    cfg = 0x0F;
+    cfg = 0x0F; // --- Power ON (Accel + Gyro ON) ---
     i2c_write(PWR_MGMT0, &cfg, 1);
+
+    cfg = 0x20; // Change to Little Endian format
+    i2c_write(INTF_CONFIG0, &cfg, 1);
 
     read_who_am_i();
     icm426xx_get_fs();
 
     ESP_ERROR_CHECK(i2c_master_bus_rm_device(dev_handle));
     ESP_ERROR_CHECK(i2c_del_master_bus(bus_handle));
-    
+
     waitTaskms(100); // 2026.03.29 ADD
 
     i2c_master_bus_config_t bus_configas = {

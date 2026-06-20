@@ -19,15 +19,19 @@ void icm426xx_init();
 void icm426xx_sleep();
 void icm426xx_start_read();
 void icm426xx_get_data(Tvector6d *pac);
+void icm426xx_resetDigitalpath();
+
 #define IMU_init() icm426xx_init()
 #define IMU_sleep() icm426xx_sleep()
 #define IMU_startRead() icm426xx_start_read()
 #define IMU_getData(p) icm426xx_get_data(p)
-////////////////////////////////////////////////
+#define IMU_ResetDigitalPath() icm426xx_resetDigitalpath()
 
+////////////////////////////////////////////////
 #define SV_FRQ 250 // [Hz] サーボ制御計算周期 = サーボ信号フレーム周期
 #define SAMPLE_RATE_HZ SV_FRQ
 #define SAMPLE_COUNT (3 * SAMPLE_RATE_HZ)
+#define SPI_SWAP_16(val)  __builtin_bswap16(val)
 
 ////////////////////////////////////////////////////////////////
 // IMUの出力軸定義に基づいて、物理的意味に対応するマクロを定義する

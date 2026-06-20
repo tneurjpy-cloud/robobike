@@ -28,7 +28,7 @@ void app_main(void)
     {
         waitms(100);
         if (auto_en && (str_out >= (STRMAX - 2) || str_out <= -(STRMAX - 2)))
-        {
+        { // 転倒判定
             if (maxcount >= 2)
             {
                 auto_disable();
@@ -59,7 +59,7 @@ void app_main(void)
             if (!ShowTaskDone) // 起動1分後にタスクの状態を表示する
             {
                 ShowTaskDone = true;
-                showTasks();
+                // showTasks();
             }
         }
     }

@@ -46,9 +46,17 @@ const TSave savedefault = {
 };
 
 //// R/C servo pulse width making
+// #define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ)) // 2^14 for 100% duty
+// #define TIMER_RES_HZ 1000000                                  //
+// #define ALARM_CNT (TIMER_RES_HZ / SV_FRQ - 750)               // delay time(usec)
+//// R/C servo pulse width making
 #define USEC2LEDCDUTY(x) (((x) * 16384) / (1000000 / SV_FRQ)) // 2^14 for 100% duty
 #define TIMER_RES_HZ 1000000                                  //
-#define ALARM_CNT (TIMER_RES_HZ / SV_FRQ - 750)               // delay time(usec)
+#define TOTAL_DELAY_CNT (TIMER_RES_HZ / SV_FRQ - 600)         // PWM立ち上がりから演算開始（ControlTask起床）までの時間(usec)
+
+// 補正：リセットからデータ確定まで625usかかるため、そこから逆算した先行仕込み時間
+#define IMU_RESET_DELAY_CNT (TOTAL_DELAY_CNT - 650)                  // 1回目のアラート（リセット発行）までの時間(usec)
+#define NEXT_EVENT_DELAY_CNT (TOTAL_DELAY_CNT - IMU_RESET_DELAY_CNT) // 2回目（非同期読み出し開始）までの相対時間(usec)
 
 static const ledc_timer_config_t servo_timer = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
@@ -273,7 +281,7 @@ void gyroServiceLoop()
     float w_roll_dev, str_dev, str_dev_diff; // 偏差
     float w_roll_cmd;
 
-    IMU_startRead();                                          // Start I2C read of IMU data, will be available in 10-20ms
+    IMU_startRead();                                          // Start I2C read of IMU data, will be available in 100us
     if (auto_en)                                              // Auto steer enabled
     {                                                         //
         str_dev = str_target - str_out;                       // Steering deviation
@@ -315,30 +323,75 @@ static void ControlTask(void *pvParameters)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         gpio_set_level(IO_1, 1); // IR LED ON
         gyroServiceLoop();       // Read IMU, calc control, update servo outputs
+        gpio_set_level(IO_1, 0); // IR LED OFF
         put_control_data();      // Send control data to web-server task
         do_ex1_out();            // Side Stand calc.
         do_mot_out();            // Motor drive calc.
         do_str_cmd_calc();       // Area detection calc.
         str_easing();            // Easing for steering command
-        gpio_set_level(IO_1, 0); // IR LED OFF
     }
 }
 
-////////////////////////////////////////////////////////////////////////////
-/// GPTimer One-Shot Delay Callback (Executed 3000us after PWM rising) ///
-static bool IRAM_ATTR sync_timer_callback(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
+static bool imu_reset_callback(gptimer_handle_t timer,
+                               const gptimer_alarm_event_data_t *edata,
+                               void *user_ctx);
+static bool imu_read_trigger_callback(gptimer_handle_t timer,
+                                      const gptimer_alarm_event_data_t *edata,
+                                      void *user_ctx);
+
+// -------------------------------------------------------------------------
+// ISR1 PWM立ち上がりから指定時間後：IMUのサンプリングカウンタをリセット
+// -------------------------------------------------------------------------
+static bool IRAM_ATTR imu_reset_callback(gptimer_handle_t timer,
+                                         const gptimer_alarm_event_data_t *edata,
+                                         void *user_ctx)
 {
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    static gptimer_event_callbacks_t cbs1 = {
+        .on_alarm = imu_read_trigger_callback};
+    static gptimer_alarm_config_t next_alarm = {
+        .alarm_count = NEXT_EVENT_DELAY_CNT,
+        .reload_count = 0,
+        .flags.auto_reload_on_alarm = false,
+    };
 
     gptimer_stop(timer);
-    vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
-    return xHigherPriorityTaskWoken == pdTRUE;
+    gptimer_register_event_callbacks(timer, &cbs1, NULL);
+    gptimer_set_alarm_action(timer, &next_alarm);
+    gptimer_set_raw_count(timer, 0);
+    gptimer_start(timer);
+    gpio_set_level(IO_1, 1); // IR LED ON
+    IMU_ResetDigitalPath();
+    gpio_set_level(IO_1, 0); // IR LED ON
+    return false;
 }
 
-////////////////////////////////////////////////////////////////////////////
-/// GPIO External Interrupt Handler (Triggered at PWM Rising Edge) ///
+// -------------------------------------------------------------------------
+// ISR1 から625us後：データが確定した瞬間に読み出しstart
+// -------------------------------------------------------------------------
+static bool IRAM_ATTR imu_read_trigger_callback(gptimer_handle_t timer,
+                                                const gptimer_alarm_event_data_t *edata,
+                                                void *user_ctx)
+{
+    gptimer_stop(timer);
+    vTaskNotifyGiveFromISR(xControlTaskHandle, NULL);
+    return true;
+}
+
+// -------------------------------------------------------------------------
+// 【GPIO外部割り込み】PWMの立ち上がりエッジで駆動
+// -------------------------------------------------------------------------
 static void IRAM_ATTR gpio_str_in_isr_handler(void *arg)
 {
+    static gptimer_event_callbacks_t cbs2 = {
+        .on_alarm = imu_reset_callback};
+    static gptimer_alarm_config_t first_alarm = {
+        .alarm_count = IMU_RESET_DELAY_CNT,
+        .reload_count = 0,
+        .flags.auto_reload_on_alarm = false,
+    };
+
+    gptimer_register_event_callbacks(sync_timer, &cbs2, NULL);
+    gptimer_set_alarm_action(sync_timer, &first_alarm);
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_start(sync_timer);
 }
@@ -380,7 +433,7 @@ void servo_init()
     gptimer_new_timer(&timer_config, &sync_timer);
 
     gptimer_alarm_config_t alarm_config = {
-        .alarm_count = ALARM_CNT,
+        .alarm_count = IMU_RESET_DELAY_CNT, // ★ここを修正：最初の発火ターゲット（リセット仕込み時間）にする
         .reload_count = 0,
         .flags = {
             .auto_reload_on_alarm = false,
@@ -389,7 +442,7 @@ void servo_init()
     gptimer_set_alarm_action(sync_timer, &alarm_config);
 
     gptimer_event_callbacks_t cbs = {
-        .on_alarm = sync_timer_callback,
+        .on_alarm = imu_reset_callback, // ★ここを修正：最初の受け皿を1回目専用の関数にする
     };
     gptimer_register_event_callbacks(sync_timer, &cbs, NULL);
     gptimer_enable(sync_timer);
