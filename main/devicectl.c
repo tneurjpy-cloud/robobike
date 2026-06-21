@@ -341,9 +341,6 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_21, 0);
 
-    IMU_init();
-    servo_init();
-
     // LED1  setup
     init_led_pwm();
     set_led_brightness(LEDLOW);

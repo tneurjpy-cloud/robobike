@@ -20,6 +20,7 @@ void icm426xx_sleep();
 void icm426xx_start_read();
 void icm426xx_get_data(Tvector6d *pac);
 void icm426xx_resetDigitalpath();
+#define ICM426XX_RESETWAIT 650 // (us) Time for reset to the 1st conversion
 
 #define IMU_init() icm426xx_init()
 #define IMU_sleep() icm426xx_sleep()

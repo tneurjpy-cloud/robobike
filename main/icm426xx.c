@@ -115,7 +115,7 @@ void icm426xx_get_data(Tvector6d *pac)
 {
     uint32_t timeout = 0;
 
-    while (!i2c_done && timeout < 200)
+    while (!i2c_done && timeout < 100)
     { // timeout = 2ms
         esp_rom_delay_us(10);
         timeout++;

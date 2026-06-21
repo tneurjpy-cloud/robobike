@@ -16,9 +16,12 @@ void app_main(void)
     ESP_LOGI(TAG, "Start ROBOBIKE system");
     esp_log_level_set("*", ESP_LOG_INFO);
     userdeviceinit();
+    IMU_init();
+    servo_init();
     webserver_start();
+
     set_led_brightness(LEDLOW);
-    set_str_cmd(0.0f, 100.0f);
+    // set_str_cmd(0.0f, 100.0f);
     printf("PROGVER=%d DATAVER=%u SYSID=%s\n", PROGVER, DATAVER, SysID());
     ESP_LOGI(TAG, "OpTime=%lusec\n", saved.op_time_s);
     showTasks();
