@@ -87,9 +87,10 @@ Please install the ESP-IDF extension in VS-Code before building this project.
         CSV file : partitions.csv  
     configUSE_TRACE_FACILITY : checked  
     configGENERATE_RUN_TIME_STATS : checked
+    configTICK_RATE_HZ : 100
 * For debug with GDB, delete "launch.json"
     Full Clean
-    Slelect Target to esp32c3 via USB JTAG
+    Select Target to esp32c3 via USB JTAG
     Select COM port, Build and flash
     Power down the target and perform a complete system reboot.
     OpenOCD Server, select "Eclipse CDT..."

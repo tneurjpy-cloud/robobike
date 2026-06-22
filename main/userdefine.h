@@ -103,13 +103,12 @@ typedef struct
     uint32_t CRC;         //
 } TSave;
 
-typedef enum // 自動旋回修正用状態定義
-{
+typedef enum         // 自動旋回修正用状態定義
+{                    //
     rsOuter,         // 外側走行、定常旋回
     rsInner_Correct, // 内側走行、修正動作
     rsInner_Stable   // 内側走行、定常旋回
 } TRunState;
-
 
 #define STRMAX 65
 #define STR_STOP 40
