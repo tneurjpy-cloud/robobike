@@ -65,7 +65,6 @@ Copyright 2026.06.05 M.Tanaami
 #define GPIO_STR IO_5
 #define GPIO_STR_IN IO_8
 #define GPIO_EX1 IO_9
-#define IO_SV_EN IO_10
 
 ///////////////// R/C servo using /////////////////
 #define SERVO_NEUTRAL_DUTY (1500.0f) // 0deg 1500us
@@ -110,6 +109,7 @@ typedef enum // 自動旋回修正用状態定義
     rsInner_Correct, // 内側走行、修正動作
     rsInner_Stable   // 内側走行、定常旋回
 } TRunState;
+
 
 #define STRMAX 65
 #define STR_STOP 40

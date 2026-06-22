@@ -175,19 +175,16 @@ void nvs_init()
 //// deep sleep [sec]seconds /////////////////////////////////////////
 //// msec: if 0, sleep without wakeup
 
-void deepSleep(uint32_t ms)
+void deepSleep(uint32_t wup)
 {
-    ESP_LOGI(TAG, "Sleeping: %dms", (int)ms);
+    ESP_LOGI(TAG, "Sleeping: %ums", wup);
 
-    gpio_set_level(IO_SV_EN, 0);
     savenvs();
     IMU_sleep();
-    // gptimer_stop(timerMsec01);
-    // gptimer_disable(timerMsec01);
 
-    if (ms != 0)
+    if (wup != 0)
     {
-        esp_sleep_enable_timer_wakeup((uint64_t)ms * 1000); // usec
+        esp_sleep_enable_timer_wakeup((uint64_t)wup * 1000); // usec
     }
     esp_deep_sleep_start();
 }
