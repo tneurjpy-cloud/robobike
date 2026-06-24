@@ -516,15 +516,16 @@ void servo_init()
     gptimer_register_event_callbacks(sync_timer, &cbs, NULL);
     gptimer_enable(sync_timer);
 
-    // servo initial value
-    set_mot_duty(0.0f, 0.0f);
-    set_str_cmd(0.0f, 0.0f);
-    set_ex1_angle(0.0f, 0.0f);
     // サーボ信号PWM設定
     ledc_timer_config(&servo_timer_str);
     ledc_channel_config(&svch_mot);
     ledc_channel_config(&svch_str);
     ledc_channel_config(&svch_ex1);
+
+    // servo initial value
+    set_mot_duty(0.0f, 0.0f);
+    set_str_cmd(0.0f, 0.0f);
+    set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f);
 
     auto_disable();
     ESP_LOGI(TAG, "All 3 servos integrated into 4-STAGE INTERLEAVED SYNC mode.");
