@@ -27,7 +27,7 @@ ____+------|------------|-------------|------------|_____+-----
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
-  sync_timerを、650us後割込み待ちでスタート
+  sync_timerを、450us後割込み待ちでスタート
 
 cb0: (gptimer countup interrupt)
   ControlTask起床
@@ -103,7 +103,7 @@ const TSave savedefault = {
 #define PWM_MAXLEN 1990      // us
 #define PWM_MINLEN 1010      // us
 #define CB0DELAY 10          // us
-#define FIRSTWT 550          // us
+#define FIRSTWT 450          // us
 #define STG_INTRVL 1000      // us
 
 /* 全サーボ共通：12bit高精度タイマーへ一本化 */
@@ -386,20 +386,26 @@ static void ControlTask(void *pvParameters)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
+        gpio_set_level(IO_1, 1); // IR LED ON
+
         // ★【追加】I2Cで待たされる前に、前回値を保険として先出ししておく
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_mot_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
 
-        gpio_set_level(IO_1, 1); // IR LED ON
         gyroServiceLoop();       // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
+
+        gpio_set_level(IO_1, 0); // IR LED OFF
+        gpio_set_level(IO_1, 1); // IR LED
+
         do_mot_out();
         do_str_cmd_calc();       // auto circling calc
-        gpio_set_level(IO_1, 0); // IR LED OFF
         do_ex1_out();
         str_easing();
         put_control_data();
+
+        gpio_set_level(IO_1, 0); // IR LED OFF
     }
 }
 
@@ -413,7 +419,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
 
     switch (sync_step)
     {
-    case cb0: // ■ cb0: s0開始から550us経過時点
+    case cb0:
         vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_100);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
@@ -424,7 +430,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
         sync_step++;
         break;
 
-    case cb1: // ■ cb1: s1開始から550us経過時点
+    case cb1:
 
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
@@ -438,7 +444,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
         sync_step++;
         break;
 
-    case cb2: // ■ cb2: s2開始から550us経過時点
+    case cb2:
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
 
@@ -447,7 +453,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
         sync_step++;
         break;
 
-    case cb3: // ■ cb3: s3開始から550us経過時点
+    case cb3:
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_100);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_100);
