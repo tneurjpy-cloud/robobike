@@ -276,14 +276,14 @@ void userdeviceinit()
     esp_brownout_register_callback(brownout_callback);
     nvs_init(); // nvs memory read
 
-    // IO10 Servo EN
-    io_conf.pin_bit_mask = (1ULL << IO_10);
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
-    gpio_set_level(IO_10, 0);
+    // // IO10 Servo EN
+    // io_conf.pin_bit_mask = (1ULL << IO_10);
+    // io_conf.mode = GPIO_MODE_OUTPUT;
+    // io_conf.intr_type = GPIO_INTR_DISABLE;
+    // io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    // io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    // gpio_config(&io_conf);
+    // gpio_set_level(IO_10, 0);
 
     // IO0(TP1)
     io_conf.pin_bit_mask = (1ULL << IO_0);
@@ -294,7 +294,7 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_0, 1);
 
-    // IO_1 TP2
+    // IO1 TP2
     io_conf.pin_bit_mask = (1ULL << IO_1);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -303,22 +303,13 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_1, 0);
 
-    // IO_2 TP3
+    // IO2 TP3
     io_conf.pin_bit_mask = (1ULL << IO_2);
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
-
-    // IO_10 IO_SV_EN
-    io_conf.pin_bit_mask = (1ULL << IO_10);
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
-    gpio_set_level(IO_10, 1); // Power of Servo ON
 
     // IO20
     io_conf.pin_bit_mask = (1ULL << IO_20);

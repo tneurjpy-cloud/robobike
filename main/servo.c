@@ -5,51 +5,47 @@
 
     == : H level
     __ : L level or stop
+    -- : count up running, waiting
     +  : start
     |  : fire interrupt
-    -- : count up running, waiting
 
-INT of GPIO_STR_IN <-- GPIO_STR
-      cbStrIn
-_______|____________________________________________________|_____
-       ^ start sync_timer 10us
+LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1 duty可変0-100%)
+           s0           s1            s2          s3
+____+============+======_______+____________+____________+=====
+        1000us    500us  500us     1000us       1000us
 
-LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1可変を最大50%に制限時)
-            s0            s1            s2          s3
-_______+============+======_______+____________+____________+=====
-           1000us    500us  500us     1000us       1000us
+GPIO_STR_IN <-- GPIO_STR external interrupt 4ms interval
+    cbPulseIn
+____|____________________________________________________|_____
+    start sync_timer
 
 sync_timer(gptimer)
-  CB     cb0     cb1          cb2         cb3         cb4
-__________+-------|+-----------|+----------|+----------|____+-----
-        10us     750us       1750us      2750us      3750us
-                (760us)     (1760us)    (2760us)    (3760us)
+CB         cb0          cb1           cb2          cb3
+____+------|------------|-------------|------------|_____+-----
+    0     550us        1550us        2550us       3550us
+    FIRSTWT  STGINTRVL    STGINTRVL    STGINTRVL
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
-  10us後にcb0をたたくようsynctimerを起動
+  sync_timerを、650us後割込み待ちでスタート
 
 cb0: (gptimer countup interrupt)
-  650us後のsync_timer割り込みをスタート
-  IMUのリセットを行う
-
-cb1: (gptimer countup interrupt)
-  1000us後のtimer割り込みをスタート
   ControlTask起床
   IMUのデータ取り込みを行い、全サーボの計算、
   str,mot s1のduty=0-50% を書き出し
   stdサーボのs0のduty=100%を書き出し
-
-cb2: (gptimer countup interrupt)
   1000us後のtimer割り込みをスタート
+
+cb1: (gptimer countup interrupt)
   std s1のduty=0-50% を書き出し
   str,motサーボのs2のduty=0%を書き出し
+  1000us後のtimer割り込みをスタート
+
+cb2: (gptimer countup interrupt)
+  stdサーボのs2のduty=0%を書き出し
+  1000us後のtimer割り込みをスタート
 
 cb3: (gptimer countup interrupt)
-  1000us後のtimer割り込みをスタート
-  stdサーボのs2のduty=0%を書き出し
-
-cb4: (gptimer countup interrupt)
   sync_timerは停止
   str,motサーボのs0のduty=100%を書き出し
 
@@ -101,12 +97,14 @@ const TSave savedefault = {
 
 //// R/C servo pulse width making
 #define TIMER_RES_HZ 1000000 //
-#define PWM_DUTY_0 0
-#define PWM_DUTY_100 4096  // 12bit完全100%固定値
-#define PWM_STAGE_LEN 1000 // us
-#define PWM_MAXLEN 2000    // us
-#define PWM_MINLEN 1001    // us
-#define CB0DELAY 10        // us
+#define PWM_DUTY_0 0         //
+#define PWM_DUTY_100 4096    // 12bit完全100%固定値
+#define PWM_STAGE_LEN 1000   // us
+#define PWM_MAXLEN 1990      // us
+#define PWM_MINLEN 1010      // us
+#define CB0DELAY 10          // us
+#define FIRSTWT 550          // us
+#define STG_INTRVL 1000      // us
 
 /* 全サーボ共通：12bit高精度タイマーへ一本化 */
 static const ledc_timer_config_t servo_timer_str = {
@@ -140,7 +138,7 @@ static ledc_channel_config_t svch_ex1 = {
     .timer_sel = LEDC_TIMER_1,
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_EX1,
-    .duty = PWM_DUTY_0, // ★スタンドは1ステージ遅らせるため、初期状態のs0は0%（L開始）！
+    .duty = PWM_DUTY_0, // ★スタンドは1ステージ遅らせるため、初期状態のs0は0%（L開始）
     .hpoint = 0};
 
 // gpTimer for synchronization
@@ -152,9 +150,8 @@ typedef enum
     cb1,
     cb2,
     cb3,
-    cb4,
 } TSyncCBStep;
-static volatile TSyncCBStep sync_step = cb0;
+static volatile TSyncCBStep sync_step;
 
 // タスクが計算した std（ex1）のs2用可変Dutyを一時保持するバッファ変数
 static volatile uint32_t duty_ex1_s2 = 0;
@@ -416,75 +413,65 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
 
     switch (sync_step)
     {
-    case cb0: // ■ cb0: s0開始から10us経過時点 (IMUリセット)
-        next_alarm.alarm_count = CB0DELAY + ICM426XX_RESETWAIT;
-        gptimer_set_alarm_action(timer, &next_alarm);
-        gpio_set_level(IO_1, 1);
-        IMU_ResetDigitalPath();
-        gpio_set_level(IO_1, 0);
-        sync_step++;
-        break;
-
-    case cb1: // ■ cb1: s0開始から660us経過時点 (s1ラッチの340us前：通算660us時点)
-        next_alarm.alarm_count = 1660;
-        gptimer_set_alarm_action(timer, &next_alarm);
-        sync_step++;
-
+    case cb0: // ■ cb0: s0開始から550us経過時点
         vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
-        res = true;
-
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_100);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+
+        next_alarm.alarm_count = FIRSTWT + STG_INTRVL;
+        gptimer_set_alarm_action(timer, &next_alarm);
+        res = true;
+        sync_step++;
         break;
 
-    case cb2: // ■ cb2: s1開始から660us経過時点 (s2ラッチの340us前：通算1660us時点)
-        next_alarm.alarm_count = 2660;
-        gptimer_set_alarm_action(timer, &next_alarm);
-        sync_step++;
+    case cb1: // ■ cb1: s1開始から550us経過時点
 
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
-
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, duty_ex1_s2);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
-        break;
 
-    case cb3: // ■ cb3: s2開始から660us経過時点 (s3ラッチ340us前：通算2660us時点)
-        next_alarm.alarm_count = 3660;
+        next_alarm.alarm_count = FIRSTWT + STG_INTRVL * 2;
         gptimer_set_alarm_action(timer, &next_alarm);
         sync_step++;
-
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
         break;
 
-    case cb4: // ■ cb4: s3開始から660us経過時点 (s0ラッチ340us前：通算3660us時点)
-        gptimer_stop(timer);
-        sync_step = cb0;
+    case cb2: // ■ cb2: s2開始から550us経過時点
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
+        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
 
+        next_alarm.alarm_count = FIRSTWT + STG_INTRVL * 3;
+        gptimer_set_alarm_action(timer, &next_alarm);
+        sync_step++;
+        break;
+
+    case cb3: // ■ cb3: s3開始から550us経過時点
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_100);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_100);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
-
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+
+        gptimer_stop(timer); // 自走終了 外部割込み待ちへ
+        sync_step = cb0;
         break;
     }
 
     return res;
 }
 
-// 【cbStrIn: GPIO外部割り込みハンドラ】GPIO_STRの立ち上がりを検知
-static void IRAM_ATTR gpio_srv_in_isr_handler(void *arg)
+// PulseIn: サーボ信号検出外部割り込みハンドラ s0開始=GPIO_STRの立ち上がりを検知
+static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
 {
     static gptimer_alarm_config_t first_alarm = {
-        .alarm_count = CB0DELAY, // 10us後にcb0を発火
+        .alarm_count = FIRSTWT,
         .flags.auto_reload_on_alarm = false,
     };
 
+    // 外部割込み待ちフェーズの時だけ反応
     if (sync_step != cb0)
     {
         return;
@@ -492,8 +479,6 @@ static void IRAM_ATTR gpio_srv_in_isr_handler(void *arg)
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_set_alarm_action(sync_timer, &first_alarm);
     gptimer_start(sync_timer);
-
-    sync_step = cb0;
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -501,15 +486,11 @@ void servo_init()
 {
     pyaw_coeff = &saved.yaw_coeff;
 
-    // 12bit高速タイマーのみで3chすべてをドライブ（古い14bitタイマーは完全消去）
-    ledc_timer_config(&servo_timer_str);
-    ledc_channel_config(&svch_mot);
-    ledc_channel_config(&svch_str);
-    ledc_channel_config(&svch_ex1);
-
+    // 制御計算タスク生成
     control_init();
     xTaskCreate(ControlTask, "ControlTask", 2048, NULL, configMAX_PRIORITIES - 1, &xControlTaskHandle);
 
+    // サーボ信号検出ポート設定
     gpio_config_t io_conf = {
         .intr_type = GPIO_INTR_POSEDGE,
         .pin_bit_mask = (1ULL << GPIO_STR_IN),
@@ -518,26 +499,33 @@ void servo_init()
         .pull_up_en = GPIO_PULLUP_DISABLE,
     };
     gpio_config(&io_conf);
-
     gpio_install_isr_service(0);
-    gpio_isr_handler_add(GPIO_STR_IN, gpio_srv_in_isr_handler, NULL);
+    gpio_isr_handler_add(GPIO_STR_IN, gpio_PulseIn_isr_handler, NULL);
 
+    // サーボ信号生成タイマー設定
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
         .resolution_hz = TIMER_RES_HZ,
     };
     gptimer_new_timer(&timer_config, &sync_timer);
-
+    sync_step = cb0;
     gptimer_event_callbacks_t cbs = {
         .on_alarm = sync_timer_isr_cb,
     };
     gptimer_register_event_callbacks(sync_timer, &cbs, NULL);
     gptimer_enable(sync_timer);
 
+    // servo initial value
+    set_mot_duty(0.0f, 0.0f);
+    set_str_cmd(0.0f, 0.0f);
+    set_ex1_angle(0.0f, 0.0f);
+    // サーボ信号PWM設定
+    ledc_timer_config(&servo_timer_str);
+    ledc_channel_config(&svch_mot);
+    ledc_channel_config(&svch_str);
+    ledc_channel_config(&svch_ex1);
+
     auto_disable();
-    str_pwm_out(0.0f);
-    set_mot_duty(0, 0.0f);
-    set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f);
     ESP_LOGI(TAG, "All 3 servos integrated into 4-STAGE INTERLEAVED SYNC mode.");
 }

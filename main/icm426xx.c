@@ -14,13 +14,12 @@ static const char TAG[] = "icm426xx";
 #define ACCEL_CONFIG0 0x21     //
 #define ACCEL_CONFIG1 0x22     //
 #define GYRO_CONFIG1 0x23      // [2,0] GYRO_UI_FILT_BW
-#define SIGNAL_PATH_RESET 0x02 // measure timing reset
 #define INTF_CONFIG0 0x35      // for endian change
 
-#define WHO_AM_I 0x75          // Device ID register
-#define ACC_LOPASS_NON 0x00    // ODR=1.6kHz=800Hz
-#define ACC_LOPASS_40HZ 0x07   //
-#define I2C_MASTER_TIMEOUT 100 // msec
+#define WHO_AM_I 0x75           // Device ID register
+#define ACC_LOPASS_NON 0x00     // ODR=1.6kHz=800Hz
+#define ACC_LOPASS_40HZ 0x07    //
+#define I2C_MASTER_TIMEOUT 100  // msec
 
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500/dps
 #define GRAVITY 9.80665f                    //
@@ -78,14 +77,6 @@ void icm426xx_sleep()
     uint8_t sleep_mode = 0x00; // GYRO_MODE=00 (off), ACCEL_MODE=00 (off), IDLE=0, ACCEL_LP_CLK_SEL=0
     ESP_LOGI(TAG, "entering sleep (PWR_MGMT0=0x%02X)", sleep_mode);
     i2c_write(PWR_MGMT0, &sleep_mode, 1);
-}
-
-void icm426xx_resetDigitalpath()
-{
-    static uint8_t flush_cmd = 0x04;
-
-    i2c_write(SIGNAL_PATH_RESET, &flush_cmd, 1);
-    esp_rom_delay_us(2);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -175,6 +166,16 @@ void icm426xx_init()
     ESP_ERROR_CHECK(i2c_del_master_bus(bus_handle));
 
     waitTaskms(100); // 2026.03.29 ADD
+
+    // IO10 IMU_INT0
+    gpio_config_t io_conf;
+
+    io_conf.pin_bit_mask = (1ULL << IO_10);
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.intr_type = GPIO_INTR_POSEDGE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
 
     i2c_master_bus_config_t bus_configas = {
         .clk_source = I2C_CLK_SRC_DEFAULT,

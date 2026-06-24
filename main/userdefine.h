@@ -47,14 +47,14 @@ Copyright 2026.06.05 M.Tanaami
 ///////////////// GPIO use ////////////////
 #define IO_0 0
 #define IO_1 1
-#define IO_2 2
+#define IO_2 2 // OUT Hi on PWON RESET
 #define IO_3 3 // LED Hi:ON Lo:OFF
 #define IO_4 4
 #define IO_5 5
 #define IO_6 6
 #define IO_7 7
-#define IO_8 8
-#define IO_9 9
+#define IO_8 8 // OUT Hi on PWON RESET
+#define IO_9 9 // OUT Hi on PWON RESET
 #define IO_10 10
 #define IO_20 20
 #define IO_21 21
@@ -65,6 +65,7 @@ Copyright 2026.06.05 M.Tanaami
 #define GPIO_STR IO_5
 #define GPIO_STR_IN IO_8
 #define GPIO_EX1 IO_9
+#define IMU_INT0 IO_10
 
 ///////////////// R/C servo using /////////////////
 #define SERVO_NEUTRAL_DUTY (1500.0f) // 0deg 1500us
