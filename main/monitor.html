@@ -29,7 +29,8 @@
             padding: 6px 12px;
             font-weight: bold;
             border-radius: 4px;
-            flex-shrink: 0; /* ボタンが潰れないように固定 */
+            flex-shrink: 0;
+            /* ボタンが潰れないように固定 */
         }
 
         #downloadBtn {
@@ -41,29 +42,41 @@
             color: #888;
         }
 
+        /* 測定モードON時のスタイル */
+        #latencyBtn.active {
+            background-color: #dc3545;
+            border-color: #ff6b6b;
+        }
+
         select {
             padding: 4px;
             border-radius: 4px;
-            flex-shrink: 0; /* セレクトボックスが潰れないように固定 */
+            flex-shrink: 0;
+            /* セレクトボックスが潰れないように固定 */
         }
 
-        /* ★ テーブル全体が画面右端からはみ出さないように自動縮小する設定 */
+        /* ★ 左側にボタンが増えたため、確保するスペースを 250px から 420px に拡張 */
         #valueTable {
             border-collapse: collapse;
             font-family: "Consolas", monospace;
             background: #000;
-            flex-grow: 1;          /* 残りの横幅をいっぱいに使う */
-            table-layout: fixed;   /* セル幅を均等に固定してはみ出しを防ぐ */
+            flex-grow: 1;
+            /* 残りの横幅をいっぱいに使う */
+            table-layout: fixed;
+            /* セル幅を均等に固定してはみ出しを防群 */
             width: 100%;
-            max-width: calc(100% - 250px); /* 左側のボタン類のスペースを確保 */
+            max-width: calc(100% - 420px);
         }
 
         #valueTable td {
             border: 1px solid #333;
-            padding: 2px 4px;      /* セル内の余白を少し詰めて凝縮 */
+            padding: 2px 4px;
+            /* セル内の余白を少し詰めて凝縮 */
             height: 32px;
-            overflow: hidden;      /* 万が一文字が溢れてもレイアウトを崩さない */
-            white-space: nowrap;   /* 文字の自動改行を禁止 */
+            overflow: hidden;
+            /* 万が一文字が溢れてもレイアウトを崩さない */
+            white-space: nowrap;
+            /* 文字の自動改行を禁止 */
         }
 
         .cell-content {
@@ -80,14 +93,16 @@
         }
 
         .label-text {
-            font-size: 13px;       /* 項目名（文字）を少し小さく */
+            font-size: 13px;
+            /* 項目名（文字）を少し小さく */
             font-weight: bold;
         }
 
         .num-cell {
             text-align: right;
             font-weight: bold;
-            font-size: 15px;       /* 数値の文字サイズを調整 */
+            font-size: 15px;
+            /* 数値の文字サイズを調整 */
         }
 
         canvas {
@@ -102,6 +117,7 @@
     <div class="controls">
         <button onclick="togglePause()" id="pauseBtn">PAUSE</button>
         <button onclick="downloadCSV()" id="downloadBtn" disabled>Save CSV</button>
+        <button onclick="toggleLatency()" id="latencyBtn">LATENCY START</button>
         <select id="scaleSelect" style="padding: 4px; border-radius: 4px;">
             <option value="0.25">x0.5</option>
             <option value="0.5" selected>x1.0</option>
@@ -118,7 +134,6 @@
             "HEADER", "TIME_MS", "SV_DRV", "SV_STR", "SV_STD",
             "GY_ROLL", "GY_YAW", "GY_PITCH", "ACC_X", "ACC_Y", "ACC_Z"
         ];
-        // 加速度計(8,9,10)用のカラー（シアン、オレンジ、グレー）
         const colors = [
             null, null, "#ff4444", "#44ff44", "#4444ff",
             "#ffff44", "#ff44ff", "#ffffff", "#00ffff", "#ffa500", "#aaaaaa"
@@ -127,6 +142,7 @@
         const ctx = canvas.getContext('2d');
         const tableRow = document.getElementById('tableRow');
         let isPaused = false;
+        let isLatencyMode = false; // ★ 測定モードの状態管理
         let dataLog = [];
         let lastX = -1;
         let lastY = new Array(11).fill(-1);
@@ -143,6 +159,26 @@
             document.getElementById('downloadBtn').disabled = !isPaused;
         }
 
+        // ★ 測定モード切り替え関数（ESP32へ状態を送信）
+        function toggleLatency() {
+            isLatencyMode = !isLatencyMode;
+            const btn = document.getElementById('latencyBtn');
+
+            if (isLatencyMode) {
+                btn.innerText = "LATENCY STOP";
+                btn.classList.add('active');
+            } else {
+                btn.innerText = "LATENCY START";
+                btn.classList.remove('active');
+            }
+
+            // ESP32のWebサーバーへ要求を送信 (GET /set_latency?run=1 または 0)
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `/set_latency?run=${isLatencyMode ? 1 : 0}`, true);
+            xhr.send();
+        }
+
+        setInterval(update, 1000);
         function update() {
             if (isPaused) return;
 
@@ -159,13 +195,9 @@
                 const padding = 20;
                 const innerH = h - (padding * 2);
 
-                // 各系統のベーススケール計算
-                const servoScale = userScale * (innerH / 200); // 100で端に到達
-                const gyroScale = servoScale * 2;              // 50で端に到達
-
-                // 【独立設定】±20 m/s2 の範囲が画面の有効範囲（innerH / 2）にピッタリ収まる固定倍率
+                const servoScale = userScale * (innerH / 200);
+                const gyroScale = servoScale * 2;
                 const accScale = (innerH / 2) / 20.0;
-
                 const maxVal = 100 / userScale;
 
                 lines.forEach(line => {
@@ -189,11 +221,11 @@
 
                         let currentScale;
                         if (i >= 8) {
-                            currentScale = accScale;     // 加速度用 (±20m/s2固定)
+                            currentScale = accScale;
                         } else if (i >= 5) {
-                            currentScale = gyroScale;    // ジャイロ用
+                            currentScale = gyroScale;
                         } else {
-                            currentScale = servoScale;   // サーボ用
+                            currentScale = servoScale;
                         }
 
                         const nextY = midY - (val * currentScale);
@@ -225,8 +257,7 @@
                     lastX = nextX;
                 });
 
-                // 背景グリッドと目盛りの描画
-                [maxVal, 0, -maxVal].forEach((v, index) => {
+                for (let v of [maxVal, 0, -maxVal]) {
                     const yPos = midY - (v * servoScale);
 
                     ctx.strokeStyle = (v === 0) ? "#666" : "#222";
@@ -245,14 +276,13 @@
                     ctx.fillStyle = "#ffff44";
                     ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
 
-                    // 【変更】グリッド線上（上端、中央、下端）に対応する m/s2 を直接表示
                     ctx.fillStyle = "#00ffff";
                     let accLabelVal = 0.0;
-                    if (index === 0) accLabelVal = 20.0;
-                    if (index === 2) accLabelVal = -20.0;
-                    
+                    if (v === maxVal) accLabelVal = 20.0;
+                    if (v === -maxVal) accLabelVal = -20.0;
+
                     ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", 160, Math.floor(yPos) + 6);
-                });
+                }
 
                 const last = lines[lines.length - 1].split(',');
                 for (let i = 2; i < 11; i++) {
@@ -307,8 +337,6 @@
                 togglePause();
             }
         });
-
-        setInterval(update, 50);
     </script>
 </body>
 

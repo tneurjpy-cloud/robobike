@@ -27,7 +27,7 @@ ____+------|------------|-------------|------------|_____+-----
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
-  sync_timerを、450us後割込み待ちでスタート
+  FIRSTWTus後にcb0を起動するようsync_timerを開始
 
 cb0: (gptimer countup interrupt)
   ControlTask起床
@@ -46,8 +46,8 @@ cb2: (gptimer countup interrupt)
   1000us後のtimer割り込みをスタート
 
 cb3: (gptimer countup interrupt)
-  sync_timerは停止
   str,motサーボのs0のduty=100%を書き出し
+  sync_timerは停止
 
 //////////////////////////////////////////////////////////////////////////*/
 
@@ -103,7 +103,7 @@ const TSave savedefault = {
 #define PWM_MAXLEN 1990      // us
 #define PWM_MINLEN 1010      // us
 #define CB0DELAY 10          // us
-#define FIRSTWT 450          // us
+#define FIRSTWT 400          // us
 #define STG_INTRVL 1000      // us
 
 /* 全サーボ共通：12bit高精度タイマーへ一本化 */

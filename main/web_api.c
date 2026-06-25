@@ -85,6 +85,7 @@ void put_control_data()
 {
     Tlogvector *p;
 
+    
     p = &ring_buffer[index_w];
     p->time = millis();
     p->acc = acc;
@@ -220,10 +221,10 @@ static void cmdProcTask(void *pvParameters)
                     }
                     set_str_cmd(-STR_STOP, 1.0f);                         // 左舵
                     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
-                    waitTaskms(400);
+                    waitTaskms(300);
                     auto_disable();
-                    set_str_cmd(STR_STOP, 2.0f);
-                    set_mot_duty(0.0f, 4.0f);
+                    set_str_cmd(STR_STOP, 1.5f);
+                    set_mot_duty(0.0f, 1.0f);
                     waitTaskms(400);
                     set_led_brightness(LEDLOW);
                 }
