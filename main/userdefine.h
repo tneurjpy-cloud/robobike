@@ -12,6 +12,7 @@ Copyright 2026.06.05 M.Tanaami
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
+#include <stdatomic.h>
 
 #include <driver/gpio.h>
 #include <driver/ledc.h>
@@ -39,6 +40,7 @@ Copyright 2026.06.05 M.Tanaami
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <dns_server.h>
+#include "esp_adc/adc_oneshot.h"
 
 #include "IMU.h"
 
@@ -235,5 +237,6 @@ void put_control_data(void);
 esp_err_t put_command(control_msg_t *msg);
 char *get_edit_data(void);
 char *get_control_data(void);
+char *clear_buffer_data(void);
 void str_pwm_out(float angle);
 esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err);

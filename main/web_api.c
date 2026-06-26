@@ -2,6 +2,7 @@
 
 static const char *TAG = "web_api";
 
+
 // 名前変換関数を定義
 const char *cmdID_to_str(TcmdID id)
 {
@@ -73,18 +74,22 @@ typedef struct
     float drv;
     float str;
     float std;
+    float sv_pos;
 } Tlogvector;
 
 Tlogvector ring_buffer[RING_BUF_SIZE];
-static int index_w = 0;
-static int index_r = 0; // 最後に読み出した位置
+static volatile uint16_t index_w = 0; // 次に書き込む位置
+static volatile uint16_t index_r = 0; // 最後に読み出した位置
 
 ////////////////////////////////////////////////////////
 /// called in Control task for data logging
 void put_control_data()
 {
+    extern adc_oneshot_unit_handle_t adc1_handle;
     Tlogvector *p;
+    int adc_raw;
 
+    adc_oneshot_read(adc1_handle, ADC_CHANNEL_2, &adc_raw);
     
     p = &ring_buffer[index_w];
     p->time = millis();
@@ -92,11 +97,13 @@ void put_control_data()
     p->drv = mot_out;
     p->str = str_out;
     p->std = ex1_out;
+    p->sv_pos = adc_raw * (180.0f / 4096.0f) - 90.0f;
+    atomic_thread_fence(memory_order_release); // まずここまでを確実に実行し、メモリに書き出せ
     index_w = (index_w + 1) % RING_BUF_SIZE;
 
     if (index_w == index_r) // Over flow,
     {
-        index_r = (index_r + 1) % RING_BUF_SIZE;
+        index_r = (index_r + 1) % RING_BUF_SIZE;　// discard old data
     }
 }
 
@@ -122,6 +129,7 @@ char *get_control_data()
         "ACC_X",    // 8
         "ACC_Y",    // 9
         "ACC_Z",    // 10
+        "SV_POS",   // 11
     ];
     */
     buf[0] = '\0';
@@ -131,7 +139,7 @@ char *get_control_data()
         Tlogvector *p = &ring_buffer[index_r];
         Tvector6d *pa = &p->acc;
         int len = snprintf(item_buf, sizeof(item_buf),
-                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
                            'a',
                            p->time,
                            p->drv,
@@ -142,7 +150,8 @@ char *get_control_data()
                            GY_PITCH_P(pa),
                            ACC_X(pa),
                            ACC_Y(pa),
-                           ACC_Z(pa));
+                           ACC_Z(pa),
+                           p->sv_pos);
         if (strlen(buf) + len + 1 > sizeof(buf)) // check buf length
         {
             break;
@@ -151,6 +160,14 @@ char *get_control_data()
         index_r = (index_r + 1) % RING_BUF_SIZE;
     }
     return buf;
+}
+
+char *clear_buffer_data()
+{
+    static char res[] = "OK";
+
+    index_r = index_w;
+    return res;
 }
 
 ///////////////////////////////////////////////////////////////////

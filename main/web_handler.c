@@ -145,6 +145,22 @@ const httpd_uri_t get_acc = {
     .user_ctx = NULL};
 
 /////////////////////////////////////////////////////////////////////////////
+/// @brief  "http://192.168.4.1/clear_buffer"
+static esp_err_t clear_buffer_handler(httpd_req_t *req)
+{
+    char *p = clear_buffer_data();
+    httpd_resp_set_type(req, "text/plane; charset=UTF-8");
+    httpd_resp_send(req, p, HTTPD_RESP_USE_STRLEN);
+    return ESP_OK;
+}
+
+const httpd_uri_t clear_buffer = {
+    .uri = "/clear_buffer",
+    .method = HTTP_GET,
+    .handler = clear_buffer_handler,
+    .user_ctx = NULL};
+
+/////////////////////////////////////////////////////////////////////////////
 // captive portal response
 // for android ///////////////////////////////////////
 static esp_err_t generate_204_handler(httpd_req_t *req)
@@ -281,7 +297,7 @@ const httpd_uri_t root = {
 // uri handlers declaration //////////////////////////////////////////////
 extern const httpd_uri_t ota_get, ota_update;
 const httpd_uri_t *uri_handlers[] = {
-    &root, &ncsi, &generate_204, &get_acc, &command, &ota_update, &ota_get,
+    &root, &ncsi, &generate_204, &get_acc, &clear_buffer, &command, &ota_update, &ota_get,
     &setup, &setup2, &monitor, &connecttest, &hotspot_detect, &success,
     &favicon};
 const size_t uri_handlers_count = sizeof(uri_handlers) / sizeof(uri_handlers[0]);

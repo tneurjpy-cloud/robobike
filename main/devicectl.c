@@ -14,6 +14,8 @@ int pcbver = 0;
 
 volatile uint32_t userLastControlTime = 0; // for sleep check counter
 volatile uint32_t startTime;
+// ADC1のハンドルを保持する変数
+adc_oneshot_unit_handle_t adc1_handle;
 
 #define SAVETYPE TSave
 static const char *NVSname = "nvs_data";
@@ -275,6 +277,19 @@ void userdeviceinit()
 
     esp_brownout_register_callback(brownout_callback);
     nvs_init(); // nvs memory read
+
+    // ADC1ユニットの初期化設定
+    adc_oneshot_unit_init_cfg_t init_config = {
+        .unit_id = ADC_UNIT_1,
+    };
+    adc_oneshot_new_unit(&init_config, &adc1_handle);
+
+    // ADC1_CHANNEL_2 (GPIO 2) の設定
+    adc_oneshot_chan_cfg_t config = {
+        .bitwidth = ADC_BITWIDTH_12, // 12bit解像度 (0-4095)
+        .atten = ADC_ATTEN_DB_12,    // 約0.1V - 2.8Vの範囲を測定可能
+    };
+    adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_2, &config);
 
     // IO0
     io_conf.pin_bit_mask = (1ULL << IO_0);
