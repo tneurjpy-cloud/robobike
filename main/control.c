@@ -4,6 +4,7 @@
 #include "userdefine.h"
 
 extern TRunState runState;
+extern bool sweeping;
 static uint32_t chk_start;
 int chgCount = 0;
 bool autoPilot = false;
@@ -13,7 +14,12 @@ bool autoPilot = false;
 void do_str_cmd_calc()
 {
     uint32_t now = millis();
-    if (autoCircling)
+
+    if (sweeping)
+    {
+
+    }
+    else if (autoCircling)
     {
         switch (runState)
         {

@@ -71,6 +71,7 @@ float ex1_step; // deg/cycle
 
 bool autoCircling = true;
 TRunState runState = rsOuter;
+bool sweeping = false;
 
 TSave saved;
 float *pyaw_coeff;
@@ -388,7 +389,7 @@ static void ControlTask(void *pvParameters)
 
         gpio_set_level(IO_1, 1); // IR LED ON
 
-        // ★【追加】I2Cで待たされる前に、前回値を保険として先出ししておく
+        // I2Cで待たされる前に、前回値を保険として先出ししておく
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_mot_prev);
@@ -403,13 +404,15 @@ static void ControlTask(void *pvParameters)
         do_str_cmd_calc();       // auto circling calc
         do_ex1_out();
         str_easing();
+        gpio_set_level(IO_1, 0); // IR LED OFF
+        gpio_set_level(IO_1, 1); // IR LED
         put_control_data();
 
         gpio_set_level(IO_1, 0); // IR LED OFF
     }
 }
 
-// 【主軸 gptimer 割り込みハンドラ】1000us等間隔の数珠繋ぎステートマシン
+// gptimer 割り込みハンドラ 1000us等間隔の数珠繋ぎステートマシン
 static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
     gptimer_alarm_config_t next_alarm = {0};

@@ -182,7 +182,7 @@
 
             // ESP32のWebサーバーへ要求を送信 (GET /set_sweep?run=1 または 0)
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', `/sweep?run=${isSweepMode ? 1 : 0}`, true);
+            xhr.open('GET', `/command?button=${isSweepMode ? 1 : 0}`, true);
             xhr.send();
         }
 
@@ -348,7 +348,8 @@
 
         MON_CSV_KEYS.forEach((key, i) => {
             if (i < 2) return;
-            const isChecked = (key === "GY_PITCH" || key.startsWith("ACC_")) ? "" : "checked";
+            const isChecked = 
+                (key === "GY_PITCH" || key.startsWith("ACC_") || key === "SV_POS") ? "" : "checked";
             const td = document.createElement('td');
             td.innerHTML = `
                 <div class="cell-content">

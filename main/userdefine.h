@@ -6,7 +6,7 @@ Copyright 2026.06.05 M.Tanaami
 
 #pragma once
 
-#define PROGVER 1032 // version for program
+#define PROGVER 1033 // version for program
 #define DATAVER 4    // version for saved data in NVS
 
 #include <stdint.h>
@@ -194,6 +194,8 @@ extern const httpd_uri_t ota;
     V(IR_OFF)           \
     V(bt_yaw_coeffUp)   \
     V(bt_yaw_coeffDn)   \
+    V(bt_sweepON)       \
+    V(bt_sweepOFF)      \
     V(bt_Ld_Default)
 
 typedef enum

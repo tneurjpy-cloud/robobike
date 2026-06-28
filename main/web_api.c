@@ -2,7 +2,6 @@
 
 static const char *TAG = "web_api";
 
-
 // 名前変換関数を定義
 const char *cmdID_to_str(TcmdID id)
 {
@@ -20,6 +19,7 @@ const char *cmdID_to_str(TcmdID id)
 
 char *get_edit_data()
 {
+    extern bool sweeping;
     static char rescsv[128];
     memset(rescsv, '\0', sizeof(rescsv));
 
@@ -41,10 +41,11 @@ char *get_edit_data()
         "YAW_COEFF",    // 11
         "AUTO_CIRCLING",// 12
         "STR_CMD_RATE", // 13
-        "STR_CMD_SPD"   // 14
+        "STR_CMD_SPD",  // 14
+        "SWEEPING"      // 15
     ];
     */
-    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d",
+    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d,%d",
              'b',
              PROGVER,
              DATAVER,
@@ -59,9 +60,8 @@ char *get_edit_data()
              saved.yaw_coeff,
              autoCircling,
              str_cmd_rate,
-             saved.str_cmd_speed);
-
-    ESP_LOGI(TAG, "length=%d\ncsv=%s", strlen(rescsv), rescsv);
+             saved.str_cmd_speed,
+             sweeping);
 
     return rescsv;
 }
@@ -90,7 +90,7 @@ void put_control_data()
     int adc_raw;
 
     adc_oneshot_read(adc1_handle, ADC_CHANNEL_2, &adc_raw);
-    
+
     p = &ring_buffer[index_w];
     p->time = millis();
     p->acc = acc;
@@ -103,7 +103,7 @@ void put_control_data()
 
     if (index_w == index_r) // Over flow,
     {
-        index_r = (index_r + 1) % RING_BUF_SIZE;　// discard old data
+        index_r = (index_r + 1) % RING_BUF_SIZE; // discard old data
     }
 }
 
@@ -174,122 +174,117 @@ char *clear_buffer_data()
 // TASK of Control commands of long sequences
 ///////////////////////////////////////////////////////////////////
 static TaskHandle_t xcmdProc_TaskHandle = NULL;
-static QueueHandle_t control_queue = NULL;
-static SemaphoreHandle_t xMutex = NULL;
-static EventGroupHandle_t xCommandEventGroup = NULL;
-#define CMD_F_BIT (0b00000001) // bit flag for now command was bt_F
+static volatile bool cmdProc_busy;
 
 // cmdProcTask ////////////////////////////////////////////////////
 static void cmdProcTask(void *pvParameters)
 {
+    TcmdID cmdid;
+
     for (;;)
     {
-        TcmdID id; // Do not use msg.req.
+        cmdProc_busy = false;
+        xTaskNotifyWait(0, 0, (uint32_t *)&cmdid, portMAX_DELAY);
+        cmdProc_busy = true;
 
-        if (xQueueReceive(control_queue, &id, portMAX_DELAY) == pdPASS)
-        { // do commands
-            xSemaphoreTake(xMutex, pdMS_TO_TICKS(100));
-            ESP_LOGI(TAG, "Task command= %s", cmdID_to_str(id));
-            switch (id)
+        ESP_LOGI(TAG, "Task command= %s", cmdID_to_str(cmdid));
+
+        switch (cmdid)
+        {
+        case stp_all:
+            auto_disable();
+            set_mot_duty(0.0f, SERVO_NEUTRAL_DUTY);
+            set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, SERVO_NEUTRAL_DUTY);
+            set_str_cmd(0, SERVO_NEUTRAL_DUTY);
+            savenvs(); // save NVS flash memory
+            break;
+
+        case bt_F:
+            if (mot_out != 0.0f) // 走行中
             {
-            case stp_all:
+                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / (float)SV_FRQ); // ゆっくりと戻す
+            }
+            else // start on stop
+            {    // down the stand slowly, motor on, up the stand
                 auto_disable();
-                set_mot_duty(0.0f, SERVO_NEUTRAL_DUTY);
-                set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, SERVO_NEUTRAL_DUTY);
-                set_str_cmd(0, SERVO_NEUTRAL_DUTY);
-                savenvs(); // save NVS flash memory
-                break;
-
-            case bt_F:
-                xEventGroupSetBits(xCommandEventGroup, CMD_F_BIT);
-                if (mot_out != 0.0f) // 走行中
-                {
-                    set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / (float)SV_FRQ); // ゆっくりと戻す
-                }
-                else // start on stop
-                {    // down the stand slowly, motor on, up the stand
-                    auto_disable();
-                    set_led_brightness(LEDHIGH);
-                    set_str_cmd(0.0f, 0.0f);
-                    set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
-                    wait_ex1_angle();
-                    set_ex1_angle(saved.ang_std_nut, 0.02f);
-                    wait_ex1_angle();
-                    set_mot_duty(saved.mot_spd, 50.f);
-                    auto_enable();
-                    set_ex1_angle(STD_RUN, 1.f);
-                } // 指定したビットを落とす
-                xEventGroupClearBits(xCommandEventGroup, CMD_F_BIT);
-                break;
-
-            case bt_S:
-                bool s = false;
-                if (mot_out != 0.0f)
-                {
-                    s = true;
-                }
-                if (mot_out > 0)
-                {
-                    if (str_target != 0.f)
-                    {
-                        set_str_cmd(0.0f, 60.0f / (float)SV_FRQ);
-                        wait_str_angle();
-                        waitTaskms(100);
-                    }
-                    set_str_cmd(-STR_STOP, 1.0f);                         // 左舵
-                    set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
-                    waitTaskms(300);
-                    auto_disable();
-                    set_str_cmd(STR_STOP, 1.5f);
-                    set_mot_duty(0.0f, 1.0f);
-                    waitTaskms(400);
-                    set_led_brightness(LEDLOW);
-                }
-                else
-                {
-                    set_mot_duty(0.0f, 0.0f);
-                    set_led_brightness(LEDLOW);
-                }
+                set_led_brightness(LEDHIGH);
                 set_str_cmd(0.0f, 0.0f);
+                set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
+                wait_ex1_angle();
+                set_ex1_angle(saved.ang_std_nut, 0.02f);
+                wait_ex1_angle();
+                set_mot_duty(saved.mot_spd, 50.f);
+                auto_enable();
+                set_ex1_angle(STD_RUN, 1.f);
+            }
+            break;
 
-                if (s)
+        case bt_S:
+            bool s = false;
+            if (mot_out != 0.0f)
+            {
+                s = true;
+            }
+            if (mot_out > 0)
+            {
+                if (str_target != 0.f)
                 {
-                    waitTaskms(50);
-                    savenvs();
+                    set_str_cmd(0.0f, 60.0f / (float)SV_FRQ);
+                    wait_str_angle();
+                    waitTaskms(100);
                 }
-                break;
-
-            case bt_Std_nutAuto:
+                set_str_cmd(-STR_STOP, 1.0f);                         // 左舵
+                set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
+                waitTaskms(300);
+                auto_disable();
+                set_str_cmd(STR_STOP, 1.5f);
+                set_mot_duty(0.0f, 1.0f);
+                waitTaskms(400);
+                set_led_brightness(LEDLOW);
+            }
+            else
+            {
                 set_mot_duty(0.0f, 0.0f);
-                set_ex1_angle(-10.0f, 0.1f);
-                while (ex1_out > ex1_cmd)
+                set_led_brightness(LEDLOW);
+            }
+            set_str_cmd(0.0f, 0.0f);
+
+            if (s)
+            {
+                waitTaskms(50);
+                savenvs();
+            }
+            break;
+
+        case bt_Std_nutAuto:
+            set_mot_duty(0.0f, 0.0f);
+            set_ex1_angle(-10.0f, 0.1f);
+            while (ex1_out > ex1_cmd)
+            {
+                ESP_LOGI(TAG, "az=%f", LATERAL_G);
+                waitTaskms(20);
+                if (ex1_out <= ex1_cmd)
                 {
-                    ESP_LOGI(TAG, "az=%f", LATERAL_G);
-                    waitTaskms(20);
-                    if (ex1_out <= ex1_cmd)
+                    break;
+                }
+                else if (LATERAL_G <= 0.5f)
+                {
+                    waitTaskms(40);
+                    if (LATERAL_G <= 0.5f)
                     {
                         break;
                     }
-                    else if (LATERAL_G <= 0.5f)
-                    {
-                        waitTaskms(40);
-                        if (LATERAL_G <= 0.5f)
-                        {
-                            break;
-                        }
-                    }
                 }
-
-                if (saved.ang_std_nut < EX1MAX)
-                    saved.ang_std_nut += 1;
-
-                set_ex1_angle(saved.ang_std_nut, 1);
-                break;
-
-            default:
-                break;
             }
-            xSemaphoreGive(xMutex);
+
+            if (saved.ang_std_nut < EX1MAX)
+                saved.ang_std_nut += 1;
+
+            set_ex1_angle(saved.ang_std_nut, 1);
+            break;
+
+        default:
+            break;
         }
     }
 }
@@ -299,33 +294,31 @@ esp_err_t put_command(control_msg_t *msg)
 {
     esp_err_t res = pdPASS;
 
-    if (control_queue == NULL) // 排他制御のためのオブジェクトを準備
+    if (xcmdProc_TaskHandle == NULL) // 排他制御のためのオブジェクトを準備
     {
-        control_queue = xQueueCreate(1, sizeof(control_msg_t));
-        xMutex = xSemaphoreCreateMutex();
-        xCommandEventGroup = xEventGroupCreate();
-
-        // 自身の優先度を取得
         UBaseType_t currentPriority = uxTaskPriorityGet(NULL);
         UBaseType_t newPriority = (currentPriority > 0) ? (currentPriority - 1) : 0;
         xTaskCreate(cmdProcTask, "cmdProcTask", 3072, NULL, newPriority, &xcmdProc_TaskHandle);
         ESP_LOGI(TAG, "cmdProcTask created.");
     }
 
-    if (xSemaphoreTake(xMutex, 0) != pdTRUE) // Mutexを取れなかった場合
-    {                                        // 長時間コマンド実行中である
-        if ((xEventGroupGetBits(xCommandEventGroup) & CMD_F_BIT) && (msg->id == bt_L || msg->id == bt_R))
+    if (cmdProc_busy) // 長時間コマンド実行中である
+    {
+        if (msg->id == bt_L || msg->id == bt_R)
         { // 発進シーケンス中の操舵は無視せず待つ
-            xSemaphoreTake(xMutex, portMAX_DELAY);
+            while (cmdProc_busy)
+            {
+                vTaskDelay(pdMS_TO_TICKS(100));
+            }
         }
         else
         { // ほかの場合は何もせず帰る
             return res;
         }
     }
-    // ここまで来たらMutexを取れている
-    xSemaphoreGive(xMutex);
-    ESP_LOGI(TAG, "put cmd= %s", cmdID_to_str(msg->id));
+
+    if (msg->id != only_data)
+        ESP_LOGI(TAG, "put cmd= %s", cmdID_to_str(msg->id));
 
     switch (msg->id)
     { // 即座に帰るべきコマンドはこの関数内で処理
@@ -514,6 +507,12 @@ esp_err_t put_command(control_msg_t *msg)
             saved.yaw_coeff = GYDIR_YAW_MIN;
         break;
 
+    case bt_sweepON:
+        break;
+
+    case bt_sweepOFF:
+        break;
+
     case bt_Ld_Default:
         set_mot_duty(0.0f, 0.0f);
         uint32_t opt = saved.op_time_s;
@@ -522,7 +521,7 @@ esp_err_t put_command(control_msg_t *msg)
         break;
 
     default: // Only the last command is executed, so do nothing here.
-        xQueueOverwrite(control_queue, &msg->id);
+        xTaskNotify(xcmdProc_TaskHandle, msg->id, eSetValueWithOverwrite);
         break;
     }
     return res;
