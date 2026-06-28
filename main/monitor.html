@@ -30,7 +30,6 @@
             font-weight: bold;
             border-radius: 4px;
             flex-shrink: 0;
-            /* ボタンが潰れないように固定 */
         }
 
         #downloadBtn {
@@ -42,7 +41,6 @@
             color: #888;
         }
 
-        /* 測定モードON時のスタイル */
         #sweepBtn.active {
             background-color: #dc3545;
             border-color: #ff6b6b;
@@ -52,18 +50,14 @@
             padding: 4px;
             border-radius: 4px;
             flex-shrink: 0;
-            /* セレクトボックスが潰れないように固定 */
         }
 
-        /* ★ 左側にボタンが増えたため、確保するスペースを 250px から 420px に拡張 */
         #valueTable {
             border-collapse: collapse;
             font-family: "Consolas", monospace;
             background: #000;
             flex-grow: 1;
-            /* 残りの横幅をいっぱいに使う */
             table-layout: fixed;
-            /* セル幅を均等に固定してはみ出しを防群 */
             width: 100%;
             max-width: calc(100% - 420px);
         }
@@ -71,12 +65,9 @@
         #valueTable td {
             border: 1px solid #333;
             padding: 2px 4px;
-            /* セル内の余白を少し詰めて凝縮 */
             height: 32px;
             overflow: hidden;
-            /* 万が一文字が溢れてもレイアウトを崩さない */
             white-space: nowrap;
-            /* 文字の自動改行を禁止 */
         }
 
         .cell-content {
@@ -94,7 +85,6 @@
 
         .label-text {
             font-size: 13px;
-            /* 項目名（文字）を少し小さく */
             font-weight: bold;
         }
 
@@ -102,7 +92,6 @@
             text-align: right;
             font-weight: bold;
             font-size: 15px;
-            /* 数値の文字サイズを調整 */
         }
 
         canvas {
@@ -131,7 +120,6 @@
     <canvas id="canvas"></canvas>
 
     <script>
-
         const MON_CSV_KEYS = [
             "HEADER", "TIME_MS", "SV_DRV", "SV_STR", "SV_STD",
             "GY_ROLL", "GY_YAW", "GY_PITCH", "ACC_X", "ACC_Y", "ACC_Z", "SV_POS"
@@ -140,18 +128,36 @@
             null, null, "#ff4444", "#44ff44", "#4444ff",
             "#ffff44", "#ff44ff", "#ffffff", "#00ffff", "#ffa500", "#aaaaaa", "#ff8c00"
         ];
+        const COMMAND_NAMES = [
+            'stp_all', 'only_data', 'bt_F', 'bt_S', 'bt_L', 'bt_R', 'bt_Str_S', 'bt_BK',
+            'bt_A_Up_0', 'bt_A_Dn_0', 'bt_A_Up', 'bt_A_Dn', 'bt_A_L', 'bt_A_R',
+            'bt_S_Up', 'bt_S_Dn', 'bt_R_Up', 'bt_R_Dn', 'bt_D_St', 'bt_D_Up',
+            'bt_D_Dn', 'bt_Std_nutAuto', 'bt_Std_nutUp', 'bt_Std_nutDn',
+            'bt_str_turnUp', 'bt_str_turnDn', 'bt_strcmd_Up', 'bt_strcmd_Dn',
+            'IR_ON', 'IR_OFF', 'bt_yaw_coeffUp', 'bt_yaw_coeffDn',
+            'bt_sweepON', 'bt_sweepOFF', 'bt_Ld_Default'
+        ];
+
+        const CMD_ID = { unknown: 0 };
+        COMMAND_NAMES.forEach((name, index) => {
+            CMD_ID[name] = index + 1;
+        });
+
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const tableRow = document.getElementById('tableRow');
         let isPaused = false;
-        let isSweepMode = false; // ★ 測定モードの状態管理
+        let isSweepMode = false;
         let dataLog = [];
         let lastX = -1;
         let lastY = new Array(12).fill(-1);
-        let currentDrawX = 0; // 追加: 実際の描画X座標
-        let lastDrawnSecond = -1;  // 追加: 秒またぎ判定用
+        let currentDrawX = 0;
+        let lastDrawnSecond = -1;
+        let cmdStr = "";
         const DOT_MS = 5;
-        const xhr = new XMLHttpRequest();
+
+        // 連打時やパケット詰まり時の重複リクエストを防ぐフラグ
+        let isFetchingData = false; 
 
         function resizeCanvas() {
             canvas.width = window.innerWidth - 20;
@@ -167,164 +173,173 @@
                 clearEspBuffer();
             }
         }
-        // ★ 測定モード切り替え関数（ESP32へ状態を送信）
-        function toggleSweep() {
-            isSweepMode = !isSweepMode;
-            const btn = document.getElementById('sweepBtn');
 
+        function toggleSweep() {
+            let id;
+            const btn = document.getElementById('sweepBtn');
+            isSweepMode = !isSweepMode;
             if (isSweepMode) {
                 btn.innerText = "SWEEP STOP";
                 btn.classList.add('active');
+                id = CMD_ID.bt_sweepON;
             } else {
                 btn.innerText = "SWEEP START";
                 btn.classList.remove('active');
+                id = CMD_ID.bt_sweepOFF;
             }
-
-            // ESP32のWebサーバーへ要求を送信 (GET /set_sweep?run=1 または 0)
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', `/command?button=${isSweepMode ? 1 : 0}`, true);
-            xhr.send();
+            fetch(`/command?button=${id}`);
         }
 
-        function update() {
-            if (isPaused) return;
+        // 定期周期で呼ばれる更新関数を非同期（async）化
+        async function update() {
+            if (isPaused || isFetchingData) return;
 
-            xhr.open('GET', '/get_acc', false);
-            xhr.send();
-            if (xhr.status !== 200) return;
-
-            const text = xhr.responseText.trim();
-            if (text.length === 0) return;
-
-            const lines = text.split('\n').filter(l => l.length > 0);
-
-            const h = canvas.height;
-            const midY = h / 2;
-            const userScale = parseFloat(document.getElementById('scaleSelect').value);
-            const padding = 20;
-            const innerH = h - (padding * 2);
-
-            const servoScale = userScale * (innerH / 200);
-            const gyroScale = servoScale * 2;
-            const accScale = (innerH / 2) / 20.0;
-            const maxVal = 100 / userScale;
-
-            const drawStartIndex = lines.length > 40 ? lines.length - 40 : 0;
-
-            lines.forEach((line, index) => {
-                const p = line.split(',');
-                if (p.length < 12) return;
-
-                dataLog.push(line);
-                if (dataLog.length > 12000) dataLog.shift();
-
-                if (index < drawStartIndex) return;
-
-                const timeMs = parseInt(p[1]);
-
-                const nextX = currentDrawX;
-                currentDrawX = (currentDrawX + 1) % canvas.width;
-
-                if (nextX === 0) {
-                    lastX = -1;
+            isFetchingData = true;
+            try {
+                const response = await fetch('/get_acc');
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const text = (await response.text()).trim();
+                if (text.length === 0) {
+                    isFetchingData = false;
+                    return;
                 }
 
-                if (nextX !== lastX) {
-                    ctx.fillStyle = "#000";
-                    ctx.fillRect(nextX + 1, 0, 6, h);
-                }
+                const lines = text.split('\n').filter(l => l.length > 0);
 
-                for (let i = 2; i < 12; i++) {
-                    if (p[i] === undefined) { lastY[i] = -1; continue; }
+                const h = canvas.height;
+                const midY = h / 2;
+                const userScale = parseFloat(document.getElementById('scaleSelect').value);
+                const padding = 20;
+                const innerH = h - (padding * 2);
 
-                    const chk = document.getElementById('chk-' + i);
-                    if (!chk || !chk.checked) {
-                        lastY[i] = -1; continue;
+                const servoScale = userScale * (innerH / 200);
+                const gyroScale = servoScale * 2;
+                const accScale = (innerH / 2) / 20.0;
+                const maxVal = 100 / userScale;
+
+                const drawStartIndex = lines.length > 40 ? lines.length - 40 : 0;
+
+                lines.forEach((line, index) => {
+                    const p = line.split(',');
+                    if (p.length < 12) return;
+
+                    dataLog.push(line);
+                    if (dataLog.length > 15000) dataLog.shift();
+
+                    if (index < drawStartIndex) return;
+
+                    const timeMs = parseInt(p[1]);
+
+                    const nextX = currentDrawX;
+                    currentDrawX = (currentDrawX + 1) % canvas.width;
+
+                    if (nextX === 0) {
+                        lastX = -1;
                     }
 
-                    const val = parseFloat(p[i]);
-
-                    let currentScale;
-                    if (i === 11 || i < 5) {
-                        currentScale = servoScale;
-                    } else if (i >= 8) {
-                        currentScale = accScale;
-                    } else {
-                        currentScale = gyroScale;
+                    if (nextX !== lastX) {
+                        ctx.fillStyle = "#000";
+                        ctx.fillRect(nextX + 1, 0, 6, h);
                     }
 
-                    const nextY = midY - (val * currentScale);
+                    for (let i = 2; i < 12; i++) {
+                        if (p[i] === undefined) { lastY[i] = -1; continue; }
 
-                    if (lastX !== -1 && lastY[i] !== -1) {
-                        ctx.strokeStyle = colors[i];
-                        ctx.lineWidth = 1.5;
+                        const chk = document.getElementById('chk-' + i);
+                        if (!chk || !chk.checked) {
+                            lastY[i] = -1; continue;
+                        }
 
-                        ctx.lineCap = "round";
-                        ctx.lineJoin = "round";
+                        const val = parseFloat(p[i]);
 
+                        let currentScale;
+                        if (i === 11 || i < 5) {
+                            currentScale = servoScale;
+                        } else if (i >= 8) {
+                            currentScale = accScale;
+                        } else {
+                            currentScale = gyroScale;
+                        }
+
+                        const nextY = midY - (val * currentScale);
+
+                        if (lastX !== -1 && lastY[i] !== -1) {
+                            ctx.strokeStyle = colors[i];
+                            ctx.lineWidth = 1.5;
+
+                            ctx.lineCap = "round";
+                            ctx.lineJoin = "round";
+
+                            ctx.beginPath();
+                            ctx.moveTo(lastX, lastY[i]);
+                            ctx.lineTo(nextX, nextY);
+                            ctx.stroke();
+                        }
+                        lastY[i] = nextY;
+                    }
+
+                    const currentSecond = Math.floor(timeMs / 1000);
+                    if (currentSecond !== lastDrawnSecond) {
+                        ctx.strokeStyle = "#333";
+                        ctx.lineWidth = 1;
                         ctx.beginPath();
-                        ctx.moveTo(lastX, lastY[i]);
-                        ctx.lineTo(nextX, nextY);
+                        ctx.moveTo(nextX + 0.5, 0);
+                        ctx.lineTo(nextX + 0.5, h);
                         ctx.stroke();
-                    }
-                    lastY[i] = nextY;
-                }
 
-                const currentSecond = Math.floor(timeMs / 1000);
-                if (currentSecond !== lastDrawnSecond) {
-                    ctx.strokeStyle = "#333";
+                        ctx.fillStyle = "#00ff00";
+                        ctx.font = "12px Consolas";
+                        ctx.textAlign = 'right';
+                        ctx.fillText(currentSecond + "s", nextX - 5, h - 8);
+                        ctx.textAlign = 'start';
+
+                        lastDrawnSecond = currentSecond;
+                    }
+
+                    lastX = nextX;
+                });
+
+                for (let v of [maxVal, 0, -maxVal]) {
+                    const yPos = midY - (v * servoScale);
+
+                    ctx.strokeStyle = (v === 0) ? "#666" : "#222";
                     ctx.lineWidth = 1;
                     ctx.beginPath();
-                    ctx.moveTo(nextX + 0.5, 0);
-                    ctx.lineTo(nextX + 0.5, h);
+                    ctx.moveTo(0, Math.floor(yPos) + 0.5);
+                    ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
                     ctx.stroke();
 
-                    ctx.fillStyle = "#00ff00";
-                    ctx.font = "12px Consolas";
-                    ctx.textAlign = 'right';
-                    ctx.fillText(currentSecond + "s", nextX - 5, h - 8);
-                    ctx.textAlign = 'start';
+                    if (v === 0) {
+                        ctx.fillStyle = "#aaaaaa";
+                        ctx.fillText("0", 5, Math.floor(yPos) - 4);
+                    } else {
+                        ctx.fillStyle = "rgba(0,0,0,0.8)";
+                        ctx.fillRect(5, Math.floor(yPos) - 12, 280, 24);
 
-                    lastDrawnSecond = currentSecond; // 描画した秒を更新
+                        ctx.fillStyle = "#ff4444";
+                        ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), 10, Math.floor(yPos) + 6);
+
+                        ctx.fillStyle = "#ffff44";
+                        ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
+
+                        ctx.fillStyle = "#00ffff";
+                        let accLabelVal = (v === maxVal) ? 20.0 : -20.0;
+                        ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", 160, Math.floor(yPos) + 6);
+                    }
                 }
 
-                lastX = nextX;
-            });
-
-            for (let v of [maxVal, 0, -maxVal]) {
-                const yPos = midY - (v * servoScale);
-
-                ctx.strokeStyle = (v === 0) ? "#666" : "#222";
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(0, Math.floor(yPos) + 0.5);
-                ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
-                ctx.stroke();
-
-                if (v === 0) {
-                    ctx.fillStyle = "#aaaaaa";
-                    ctx.fillText("0", 5, Math.floor(yPos) - 4);
-                } else {
-                    ctx.fillStyle = "rgba(0,0,0,0.8)";
-                    ctx.fillRect(5, Math.floor(yPos) - 12, 280, 24);
-
-                    ctx.fillStyle = "#ff4444";
-                    ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), 10, Math.floor(yPos) + 6);
-
-                    ctx.fillStyle = "#ffff44";
-                    ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), 85, Math.floor(yPos) + 6);
-
-                    ctx.fillStyle = "#00ffff";
-                    let accLabelVal = (v === maxVal) ? 20.0 : -20.0;
-                    ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", 160, Math.floor(yPos) + 6);
+                const last = lines[lines.length - 1].split(',');
+                for (let i = 2; i < 12; i++) {
+                    const val = parseFloat(last[i]);
+                    const el = document.getElementById('val-' + i);
+                    if (el) el.innerText = isNaN(val) ? "---" : val.toFixed(2);
                 }
-            }
 
-            const last = lines[lines.length - 1].split(',');
-            for (let i = 2; i < 12; i++) {
-                const val = parseFloat(last[i]);
-                const el = document.getElementById('val-' + i);
-                if (el) el.innerText = isNaN(val) ? "---" : val.toFixed(2);
+            } catch (error) {
+                console.error('Data fetch error:', error);
+            } finally {
+                isFetchingData = false; // エラーが起きても必ず通信中フラグを下ろす
             }
         }
 
@@ -348,7 +363,7 @@
 
         MON_CSV_KEYS.forEach((key, i) => {
             if (i < 2) return;
-            const isChecked = 
+            const isChecked =
                 (key === "GY_PITCH" || key.startsWith("ACC_") || key === "SV_POS") ? "" : "checked";
             const td = document.createElement('td');
             td.innerHTML = `
@@ -365,16 +380,15 @@
         });
 
         function clearEspBuffer() {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', '/clear_buffer', true); // 描画を止めないよう非同期(true)で送信
-            xhr.send();
+            // 非同期fetchでのバッファクリア送信
+            fetch('/clear_buffer')
+                .catch(err => console.error('Clear buffer error:', err));
 
-            // ついでにブラウザ側のCanvasと描画起点をリセットして画面を綺麗にする
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             lastX = -1;
             lastY.fill(-1);
-            currentDrawX = 0;       // 描画位置を左端に戻す
-            lastDrawnSecond = -1;   // 目盛りの秒数カウントをリセット
+            currentDrawX = 0;
+            lastDrawnSecond = -1;
         }
 
         // 実行部 /////////////////////////////////////////////////////////////////////////////
@@ -382,7 +396,6 @@
         setInterval(update, 50);
 
         window.addEventListener('resize', resizeCanvas);
-
         window.addEventListener('load', clearEspBuffer);
 
         window.addEventListener('keydown', function (e) {
@@ -391,7 +404,6 @@
                 togglePause();
             }
         });
-
     </script>
 </body>
 

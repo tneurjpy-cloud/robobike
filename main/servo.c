@@ -71,7 +71,6 @@ float ex1_step; // deg/cycle
 
 bool autoCircling = true;
 TRunState runState = rsOuter;
-bool sweeping = false;
 
 TSave saved;
 float *pyaw_coeff;
@@ -160,6 +159,73 @@ static volatile uint32_t duty_ex1_s2 = 0;
 // ★遅刻時の2000usパルス化を防ぐための、前回計算値保持用変数
 static uint32_t duty_str_prev = 2048; // 初期値ニュートラル(1500us相当)
 static uint32_t duty_mot_prev = 2048; // 初期値ニュートラル(1500us相当)
+
+#include <math.h>
+
+// for sin wave sweep ////////////////////////////////////////////////////
+#define DT (1.0f / SV_FRQ) // サンプリング周期 (4ms)
+#define START_FREQ 0.5f    // 開始周波数 (0.5Hz)
+#define END_FREQ 30.0f     // 終了周波数 (100Hz)
+#define SWEEP_TIME 20.0f   // スイープ時間
+#define TWO_PI 6.2831853f  // 2pai rad
+#define SEWEEP_W 10.0f     // sweep width(deg)
+
+bool doSweep = false;
+float current_time = 0.0f; // sec
+float phase = 0.0f;
+float current_freq = START_FREQ;
+float freq_multiplier = 1.0f;
+
+//////////////////////////////////////////////////////////////////////////
+void init_sweep()
+{
+    phase = 0.0f;
+    current_time = 0.0f;
+    doSweep = true;
+    current_freq = START_FREQ;
+    phase = 0.0f;
+    float total_steps = SWEEP_TIME / DT;
+    // K = (END_FREQ / START_FREQ) ^ (1 / total_steps)
+    freq_multiplier = powf(END_FREQ / START_FREQ, 1.0f / total_steps);
+}
+
+/**
+ * @brief sservo freqごとに呼び出され、スイープsin波の値を返す関数
+ * @return float 振幅 -1.0 〜 1.0 のsin波の値
+ * @note 4ms（DT）ごとの計算は掛け算1回のみで等比加速します
+ */
+static float get_sweep_sine_value(void)
+{
+    float delta_phase = TWO_PI * current_freq * DT;
+    phase += delta_phase;
+
+    if (phase >= TWO_PI)
+    {
+        phase -= TWO_PI;
+    }
+
+    float sine_value = sinf(phase);
+
+    if (current_freq < END_FREQ)
+    {
+        current_freq *= freq_multiplier;
+    }
+    else
+    {
+        current_freq = END_FREQ; // 上限ホールド
+    }
+
+    current_time += DT;
+    if (current_time >= SWEEP_TIME)
+    {
+        current_time = 0.0f;
+        phase = 0.0f;
+        current_freq = START_FREQ;
+        doSweep = false;
+    }
+
+    return sine_value;
+}
 
 ///////////////////////////////////////////////////////////////////
 bool auto_en = false;
@@ -357,6 +423,13 @@ void gyroServiceLoop()
     float w_roll_dev, str_dev, str_dev_diff;
     float w_roll_cmd;
 
+    if (doSweep) // sin wave sweep 0.5 - 100Hz
+    {
+        str_out = get_sweep_sine_value() * SEWEEP_W;
+        str_pwm_out(str_out);
+        return;
+    }
+
     IMU_startRead();
     if (auto_en)
     {
@@ -395,13 +468,13 @@ static void ControlTask(void *pvParameters)
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_mot_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
 
-        gyroServiceLoop();       // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
+        gyroServiceLoop(); // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
 
         gpio_set_level(IO_1, 0); // IR LED OFF
         gpio_set_level(IO_1, 1); // IR LED
 
         do_mot_out();
-        do_str_cmd_calc();       // auto circling calc
+        do_str_cmd_calc(); // auto circling calc
         do_ex1_out();
         str_easing();
         gpio_set_level(IO_1, 0); // IR LED OFF

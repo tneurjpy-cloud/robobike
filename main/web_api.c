@@ -19,7 +19,7 @@ const char *cmdID_to_str(TcmdID id)
 
 char *get_edit_data()
 {
-    extern bool sweeping;
+    extern bool doSweep;
     static char rescsv[128];
     memset(rescsv, '\0', sizeof(rescsv));
 
@@ -42,7 +42,7 @@ char *get_edit_data()
         "AUTO_CIRCLING",// 12
         "STR_CMD_RATE", // 13
         "STR_CMD_SPD",  // 14
-        "SWEEPING"      // 15
+        "DOSWEEP"       // 15
     ];
     */
     snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d,%d",
@@ -61,7 +61,7 @@ char *get_edit_data()
              autoCircling,
              str_cmd_rate,
              saved.str_cmd_speed,
-             sweeping);
+             doSweep);
 
     return rescsv;
 }
@@ -166,6 +166,7 @@ char *clear_buffer_data()
 {
     static char res[] = "OK";
 
+    ESP_LOGI(TAG, "/clear_buffer");
     index_r = index_w;
     return res;
 }
@@ -173,6 +174,7 @@ char *clear_buffer_data()
 ///////////////////////////////////////////////////////////////////
 // TASK of Control commands of long sequences
 ///////////////////////////////////////////////////////////////////
+static TaskHandle_t xcmdProc_CallerHandle = NULL;
 static TaskHandle_t xcmdProc_TaskHandle = NULL;
 static volatile bool cmdProc_busy;
 
@@ -180,6 +182,9 @@ static volatile bool cmdProc_busy;
 static void cmdProcTask(void *pvParameters)
 {
     TcmdID cmdid;
+    extern bool doSweep;
+    extern float current_time;
+    extern float phase;
 
     for (;;)
     {
@@ -256,6 +261,18 @@ static void cmdProcTask(void *pvParameters)
             }
             break;
 
+        case bt_sweepON:
+            if (mot_out == 0.0f)
+            {
+                extern void init_sweep();
+                init_sweep();
+            }
+            break;
+
+        case bt_sweepOFF:
+            doSweep = false;
+            break;
+
         case bt_Std_nutAuto:
             set_mot_duty(0.0f, 0.0f);
             set_ex1_angle(-10.0f, 0.1f);
@@ -286,6 +303,8 @@ static void cmdProcTask(void *pvParameters)
         default:
             break;
         }
+
+        xTaskNotifyGive(xcmdProc_CallerHandle);
     }
 }
 
@@ -302,14 +321,14 @@ esp_err_t put_command(control_msg_t *msg)
         ESP_LOGI(TAG, "cmdProcTask created.");
     }
 
-    if (cmdProc_busy) // 長時間コマンド実行中である
+    xcmdProc_CallerHandle = xTaskGetCurrentTaskHandle();
+    xTaskNotifyStateClear(NULL); // 終了待ちフラグクリア
+    if (cmdProc_busy)            // 長時間コマンド実行中である
     {
         if (msg->id == bt_L || msg->id == bt_R)
-        { // 発進シーケンス中の操舵は無視せず待つ
-            while (cmdProc_busy)
-            {
-                vTaskDelay(pdMS_TO_TICKS(100));
-            }
+        {
+            // 発進シーケンス中の操舵は待。この後のコマンドはweb server待ち行列で待つ
+            ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         }
         else
         { // ほかの場合は何もせず帰る
@@ -505,12 +524,6 @@ esp_err_t put_command(control_msg_t *msg)
             saved.yaw_coeff -= 0.001f;
         if (saved.yaw_coeff < GYDIR_YAW_MIN)
             saved.yaw_coeff = GYDIR_YAW_MIN;
-        break;
-
-    case bt_sweepON:
-        break;
-
-    case bt_sweepOFF:
         break;
 
     case bt_Ld_Default:
