@@ -81,9 +81,9 @@
             line-height: 1.4;
         }
     </style>
-</head>
 
-<body>
+
+
 
     <h2>CSVスイープデータ ボード線図プロッター</h2>
 
@@ -96,14 +96,16 @@
         <!-- 入力/出力 選択UI（データ読み込み後に表示） -->
         <div id="controls" class="controls">
             <label>入力 (Input): <select id="inputSelect"></select></label>
-            <span style="margin: 0 10px; font-weight:bold;">&rarr;</span>
+            <span style="margin: 0 10px; font-weight:bold;">→</span>
             <label>出力 (Output): <select id="outputSelect"></select></label>
         </div>
 
         <div class="info">
             <strong>【解析の前提条件】</strong><br>
             ・CSVの1行目はヘッダー（列名）であること<br>
-            ・時刻データは「TIME_MS」列を自動検索して使用します
+            ・時刻データは「TIME_MS」列を自動検索して使用します<br>
+            ・データ例をこちらからDLできます → <a
+                href="https://robobikejp.com/wp-content/uploads/2026/06/20260630155820.csv">20260630155820.csv</a><br>
         </div>
     </div>
 
@@ -115,6 +117,55 @@
         <div class="box">
             <h3>位相特性 (Phase [deg])</h3>
             <canvas id="phaseChart"></canvas>
+        </div>
+    </div>
+    <!-- 技術解説セクション -->
+    <!-- 技術解説セクション -->
+    <!-- 技術解説セクション -->
+    <div class="box" style="margin-top: 40px; background: #fafafa; border-left: 4px solid #0055ff;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="margin: 0; color: #0055ff;">📝 本プロッターの解析アルゴリズム解説</h3>
+        </div>
+        <div class="info" style="color: #333; font-size: 14px; line-height: 1.6;">
+            <p>このボード線図プロッターは、ノイズの多い実機データから高精度にゲイン・位相特性を抽出するため、単純なピーク比較や時間差測定ではなく、<strong>「動的周波数適合型の離散フーリエ変換
+                    (DFT)」</strong>を使った数理的アプローチを採用しています。</p>
+
+            <h4 style="margin-bottom: 5px; color: #555;">1. 周波数決定（ゼロクロス周期）</h4>
+            <p style="margin-top: 0; margin-bottom: 15px;">
+                1秒間の時間窓（ウィンドウ）内において、入力信号がマイナスからプラスへ切り替わる「ゼロクロス点」の間隔から、その瞬間の基本周波数 <i>f</i> (<code>freq</code>)
+                を高精度に割り出します。
+            </p>
+
+            <h4 style="margin-bottom: 5px; color: #555;">2. 振幅（ゲイン）と位相の算出（直交基底との内積とノルム）</h4>
+            <p style="margin-top: 0; margin-bottom: 5px;">
+                割り出した周波数 <i>f</i> に合わせて、瞬時値の sin, cos
+                計算値からなる単位ベクトル（複素平面上の直交基底）を動的に生成します。波形データ全体とこの単位ベクトル列との<strong>内積（ドット積）</strong>を計算することで、目的の周波数成分のみをピンポイントで射影・抽出します（順方向DFTの特定1次成分の算出に相当）。
+            </p>
+            <ul style="margin-top: 5px; margin-bottom: 15px; padding-left: 20px;">
+                <li><strong>振幅 (ノルム):</strong> 内積によって得られた cos 成分と sin
+                    成分の平方根（L2ノルム）から、各信号の本質的な振幅エネルギー（<code>U_amp</code>,
+                    <code>Y_amp</code>）を算出します。最大値・最小値の単純比較ではないため、局所的なスパイクノイズに極めて頑健です。
+                </li>
+                <li><strong>位相角:</strong> 直交成分の比率から <code>Math.atan2</code> を用いて複素平面上の位相角（<code>u_phase</code>,
+                    <code>y_phase</code>）を決定し、その差分を位相差として評価します。
+                </li>
+            </ul>
+
+            <h4 style="margin-bottom: 5px; color: #555;">3. 不連続面（±180degジャンプ）の縦線カット</h4>
+            <p style="margin-top: 0; margin-bottom: 0;">
+                位相が -180° と +180° の境界を跨いで折り返す（ラップする）際の急激な変化（しきい値 180° 超のジャンプ）をループ処理で検知し、該当ポイントのデータを <code>null</code>
+                に置き換えることで、Chart.jsの描画特性を利用して不要な縦線をきれいに切り離しています。
+            </p>
+
+            <p style="margin-top: 0; margin-bottom: 0;">
+                関連する分野：線形代数 複素関数論 フーリエ解析 制御工学 計算数学/数値解析
+            </p>
+
+        </div>
+        <div
+            style="text-align: right; margin-top: 20px; font-size: 13px; color: #666; font-style: italic; font-weight: bold;">
+            Programmed with Gemini
         </div>
     </div>
 
@@ -240,10 +291,24 @@
             // 解析関数の呼び出し
             let results = extractBodeFromWaveform(targetData, responseData, calculated_fs);
 
+            // 一旦、通常通り元のデータをすべて抽出する
             let freqPoints = results.map(r => r.freq);
             let gainPoints = results.map(r => r.gain);
             let phasePoints = results.map(r => r.phase);
 
+            // ループを回して、折り返しが発生している「直後の点」を null に置き換える
+            // （※ i=0 は前点がないので 1 からスタート）
+            for (let i = 1; i < results.length; i++) {
+                const prevPhase = results[i - 1].phase;
+                const currPhase = results[i].phase;
+
+                // -180度 と +180度 の間でジャンプした瞬間の差分を検知
+                if (Math.abs(currPhase - prevPhase) > 180) {
+                    // 線を切り離すため、現在のポイントのデータを null に設定
+                    phasePoints[i] = null;
+                    gainPoints[i] = null; // ゲイン側も連動させる場合
+                }
+            }
             drawBodePlots(freqPoints, gainPoints, phasePoints);
 
             dropZone.innerHTML = `解析完了: <strong>${currentFileName}</strong><br>` +
@@ -389,6 +454,6 @@
             });
         }
     </script>
-</body>
+    </body>
 
 </html>

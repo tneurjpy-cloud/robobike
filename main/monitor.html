@@ -121,13 +121,41 @@
 
     <script>
         const MON_CSV_KEYS = [
-            "HEADER", "TIME_MS", "SV_DRV", "SV_STR", "SV_STD",
-            "GY_ROLL", "GY_YAW", "GY_PITCH", "ACC_X", "ACC_Y", "ACC_Z", "SV_POS"
+            "HEADER",   // 0: 'a'
+            "TIME_MS",  // 1
+            "SV_DRV",   // 2
+            "SV_STR",   // 3
+            "SV_STD",   // 4
+            "SWP_SG",   // 5
+            "SV_POS",   // 6
+            "GY_ROLL",  // 7
+            "GY_YAW",   // 8
+            "GY_PITCH", // 9
+            "ACC_X",    // 10
+            "ACC_Y",    // 11
+            "ACC_Z",    // 12
         ];
         const colors = [
-            null, null, "#ff4444", "#44ff44", "#4444ff",
-            "#ffff44", "#ff44ff", "#ffffff", "#00ffff", "#ffa500", "#aaaaaa", "#ff8c00"
+            null, null, // 0: HEADER, 1: TIME_MS (描画しないためnull)
+
+            // サーボ関連:
+            "#ff4444",  // 2: SV_DRV  (赤)
+            "#ff8c00",  // 3: SV_STR  (ダークオレンジ)
+            "#ff44ff",  // 4: SV_STD  (マゼンタ)
+            "#ffb6c1",  // 5: SWP_SG  (ライトピンク)
+            "#ffff44",  // 6: SV_POS  (黄)
+
+            // ジャイロ
+            "#4444ff",  // 7: GY_ROLL   (青)
+            "#00ffff",  // 8: GY_YAW    (シアン)
+            "#9400d3",  // 9: GY_PITCH  (ダークバイオレット)
+
+            // 加速度
+            "#44ff44",  // 10: ACC_X  (明るい緑)
+            "#00aa00",  // 11: ACC_Y  (深めの緑)
+            "#adff2f",  // 12: ACC_Z  (緑黄 / グリーンイエロー)
         ];
+
         const COMMAND_NAMES = [
             'stp_all', 'only_data', 'bt_F', 'bt_S', 'bt_L', 'bt_R', 'bt_Str_S', 'bt_BK',
             'bt_A_Up_0', 'bt_A_Dn_0', 'bt_A_Up', 'bt_A_Dn', 'bt_A_L', 'bt_A_R',
@@ -146,18 +174,20 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const tableRow = document.getElementById('tableRow');
+        const col_count = MON_CSV_KEYS.length;
         let isPaused = false;
         let isSweepMode = false;
         let dataLog = [];
         let lastX = -1;
-        let lastY = new Array(12).fill(-1);
+        let lastY = new Array(col_count).fill(-1);
         let currentDrawX = 0;
         let lastDrawnSecond = -1;
         let cmdStr = "";
         const DOT_MS = 5;
+        let svPosEma = 0;
 
         // 連打時やパケット詰まり時の重複リクエストを防ぐフラグ
-        let isFetchingData = false; 
+        let isFetchingData = false;
 
         function resizeCanvas() {
             canvas.width = window.innerWidth - 20;
@@ -198,7 +228,7 @@
             try {
                 const response = await fetch('/get_acc');
                 if (!response.ok) throw new Error('Network response was not ok');
-                
+
                 const text = (await response.text()).trim();
                 if (text.length === 0) {
                     isFetchingData = false;
@@ -222,7 +252,7 @@
 
                 lines.forEach((line, index) => {
                     const p = line.split(',');
-                    if (p.length < 12) return;
+                    if (p.length < col_count) return;
 
                     dataLog.push(line);
                     if (dataLog.length > 15000) dataLog.shift();
@@ -243,7 +273,7 @@
                         ctx.fillRect(nextX + 1, 0, 6, h);
                     }
 
-                    for (let i = 2; i < 12; i++) {
+                    for (let i = 2; i < col_count; i++) {
                         if (p[i] === undefined) { lastY[i] = -1; continue; }
 
                         const chk = document.getElementById('chk-' + i);
@@ -251,15 +281,49 @@
                             lastY[i] = -1; continue;
                         }
 
-                        const val = parseFloat(p[i]);
-
+                        let currentSvStr = 0;
+                        let val = parseFloat(p[i]); // 計算の前にまず val をパースしておく
                         let currentScale;
-                        if (i === 11 || i < 5) {
-                            currentScale = servoScale;
-                        } else if (i >= 8) {
-                            currentScale = accScale;
-                        } else {
-                            currentScale = gyroScale;
+                        switch (i) {
+                            case 2: // SV_DRV
+                                currentScale = servoScale;
+                                break;
+
+                            case 3: // SV_STR
+                                currentSvStr = val;
+                                currentScale = servoScale;
+                                break;
+
+                            case 4: // SV_STD
+                                currentScale = servoScale;
+
+                                break;
+                            case 5: // SWP_SG
+                                currentScale = servoScale;
+                                break;
+
+                            case 6: // SV_POS
+                                currentScale = servoScale;
+                                if (currentSvStr == 0 && !isSweepMode) {
+                                    svPosEma = (val * 0.1) + (svPosEma * 0.9);
+                                }
+                                val -= svPosEma;
+                                break;
+
+                            case 7: // GY_ROLL
+                            case 8: // GY_YAW
+                            case 9: // GY_PITCH
+                                currentScale = gyroScale;
+                                break;
+
+                            case 10: // ACC_X
+                            case 11: // ACC_Y
+                            case 12: // ACC_Z
+                                currentScale = accScale;
+                                break;
+
+                            default:
+                                throw new Error(`[Bode Plotter Error] Undefined item (${i})`);
                         }
 
                         const nextY = midY - (val * currentScale);
@@ -330,7 +394,7 @@
                 }
 
                 const last = lines[lines.length - 1].split(',');
-                for (let i = 2; i < 12; i++) {
+                for (let i = 2; i < col_count; i++) {
                     const val = parseFloat(last[i]);
                     const el = document.getElementById('val-' + i);
                     if (el) el.innerText = isNaN(val) ? "---" : val.toFixed(2);
@@ -380,7 +444,6 @@
         });
 
         function clearEspBuffer() {
-            // 非同期fetchでのバッファクリア送信
             fetch('/clear_buffer')
                 .catch(err => console.error('Clear buffer error:', err));
 

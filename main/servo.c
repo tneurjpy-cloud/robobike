@@ -163,30 +163,35 @@ static uint32_t duty_mot_prev = 2048; // 初期値ニュートラル(1500us相�
 #include <math.h>
 
 // for sin wave sweep ////////////////////////////////////////////////////
-#define DT (1.0f / SV_FRQ) // サンプリング周期 (4ms)
-#define START_FREQ 0.5f    // 開始周波数 (0.5Hz)
-#define END_FREQ 30.0f     // 終了周波数 (100Hz)
-#define SWEEP_TIME 20.0f   // スイープ時間
+#define DT (1.0f / SV_FRQ) // サンプリング周期 (ms)
+#define START_FREQ 0.3f    // 開始周波数 (Hz)
+#define END_FREQ 40.0f     // 終了周波数 (Hz)
+#define SWEEP_TIME 30.0f   // スイープ時間
 #define TWO_PI 6.2831853f  // 2pai rad
-#define SEWEEP_W 10.0f     // sweep width(deg)
+#define SWEEP_W 10.0f      // sweep width(deg)
 
 bool doSweep = false;
 float current_time = 0.0f; // sec
-float phase = 0.0f;
+float sweep_phase = 0.0f;
 float current_freq = START_FREQ;
 float freq_multiplier = 1.0f;
+float swp_sg = 0.0f;
+float swp_ampletude;
 
 //////////////////////////////////////////////////////////////////////////
 void init_sweep()
 {
-    phase = 0.0f;
+    sweep_phase = 0.0f;
     current_time = 0.0f;
     doSweep = true;
     current_freq = START_FREQ;
-    phase = 0.0f;
+    sweep_phase = 0.0f;
     float total_steps = SWEEP_TIME / DT;
     // K = (END_FREQ / START_FREQ) ^ (1 / total_steps)
     freq_multiplier = powf(END_FREQ / START_FREQ, 1.0f / total_steps);
+    swp_ampletude = SWEEP_W;
+    if (mot_out != 0.0f)
+        swp_ampletude *= 0.01f;
 }
 
 /**
@@ -196,15 +201,20 @@ void init_sweep()
  */
 static float get_sweep_sine_value(void)
 {
-    float delta_phase = TWO_PI * current_freq * DT;
-    phase += delta_phase;
-
-    if (phase >= TWO_PI)
+    if (!doSweep)
     {
-        phase -= TWO_PI;
+        return 0.0f;
     }
 
-    float sine_value = sinf(phase);
+    float delta_phase = TWO_PI * current_freq * DT;
+    sweep_phase += delta_phase;
+
+    if (sweep_phase >= TWO_PI)
+    {
+        sweep_phase -= TWO_PI;
+    }
+
+    float sine_value = sinf(sweep_phase);
 
     if (current_freq < END_FREQ)
     {
@@ -219,12 +229,13 @@ static float get_sweep_sine_value(void)
     if (current_time >= SWEEP_TIME)
     {
         current_time = 0.0f;
-        phase = 0.0f;
+        sweep_phase = 0.0f;
         current_freq = START_FREQ;
         doSweep = false;
+        sine_value = 0.0f;
     }
 
-    return sine_value;
+    return sine_value * swp_ampletude;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -423,14 +434,9 @@ void gyroServiceLoop()
     float w_roll_dev, str_dev, str_dev_diff;
     float w_roll_cmd;
 
-    if (doSweep) // sin wave sweep 0.5 - 100Hz
-    {
-        str_out = get_sweep_sine_value() * SEWEEP_W;
-        str_pwm_out(str_out);
-        return;
-    }
-
     IMU_startRead();
+    swp_sg = get_sweep_sine_value();
+
     if (auto_en)
     {
         str_dev = str_target - str_out;
@@ -438,7 +444,7 @@ void gyroServiceLoop()
         str_diff_lps = (1.0f - saved.str_diff_alph) * str_diff_lps + saved.str_diff_alph * str_dev_diff;
         w_roll_cmd = str_dev * saved.gain_str + str_diff_lps * saved.gain_str_diff;
         w_roll_dev = w_roll_cmd - IMU_roll();
-        str_out -= w_roll_dev * saved.gain_w_roll * (1.0f / SV_FRQ);
+        str_out -= w_roll_dev * saved.gain_w_roll * (1.0f / SV_FRQ) + swp_sg;
         last_str_dev = str_dev;
         chklimit(&str_out, STRMAX);
         str_pwm_out(str_out);
@@ -448,7 +454,7 @@ void gyroServiceLoop()
         last_str_dev = 0.0f;
         str_diff_lps = 0.0f;
         str_out = 0.0f;
-        str_pwm_out(str_target);
+        str_pwm_out(str_target + swp_sg);
         if (IMU_getZero())
             saved.acc_offset = acc_offset;
     }

@@ -74,6 +74,7 @@ typedef struct
     float drv;
     float str;
     float std;
+    float swp_sg;
     float sv_pos;
 } Tlogvector;
 
@@ -88,6 +89,7 @@ void put_control_data()
     extern adc_oneshot_unit_handle_t adc1_handle;
     Tlogvector *p;
     int adc_raw;
+    extern float swp_sg;
 
     adc_oneshot_read(adc1_handle, ADC_CHANNEL_2, &adc_raw);
 
@@ -97,6 +99,7 @@ void put_control_data()
     p->drv = mot_out;
     p->str = str_out;
     p->std = ex1_out;
+    p->swp_sg = swp_sg;
     p->sv_pos = adc_raw * (180.0f / 4096.0f) - 90.0f;
     atomic_thread_fence(memory_order_release); // まずここまでを確実に実行し、メモリに書き出せ
     index_w = (index_w + 1) % RING_BUF_SIZE;
@@ -123,13 +126,14 @@ char *get_control_data()
         "SV_DRV",   // 2
         "SV_STR",   // 3
         "SV_STD",   // 4
-        "GY_ROLL",  // 5
-        "GY_YAW",   // 6
-        "GY_PITCH", // 7
-        "ACC_X",    // 8
-        "ACC_Y",    // 9
-        "ACC_Z",    // 10
-        "SV_POS",   // 11
+        "SWP_SG",   // 5
+        "SV_POS"    // 6
+        "GY_ROLL",  // 7
+        "GY_YAW",   // 8
+        "GY_PITCH", // 9
+        "ACC_X",    // 10
+        "ACC_Y",    // 11
+        "ACC_Z",    // 12
     ];
     */
     buf[0] = '\0';
@@ -139,19 +143,20 @@ char *get_control_data()
         Tlogvector *p = &ring_buffer[index_r];
         Tvector6d *pa = &p->acc;
         int len = snprintf(item_buf, sizeof(item_buf),
-                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
                            'a',
                            p->time,
                            p->drv,
                            p->str,
                            p->std,
+                           p->swp_sg,
+                           p->sv_pos,
                            GY_ROLL_P(pa),
                            GY_YAW_P(pa),
                            GY_PITCH_P(pa),
                            ACC_X(pa),
                            ACC_Y(pa),
-                           ACC_Z(pa),
-                           p->sv_pos);
+                           ACC_Z(pa));
         if (strlen(buf) + len + 1 > sizeof(buf)) // check buf length
         {
             break;
@@ -183,8 +188,6 @@ static void cmdProcTask(void *pvParameters)
 {
     TcmdID cmdid;
     extern bool doSweep;
-    extern float current_time;
-    extern float phase;
 
     for (;;)
     {
@@ -262,11 +265,8 @@ static void cmdProcTask(void *pvParameters)
             break;
 
         case bt_sweepON:
-            if (mot_out == 0.0f)
-            {
-                extern void init_sweep();
-                init_sweep();
-            }
+            extern void init_sweep();
+            init_sweep();
             break;
 
         case bt_sweepOFF:
