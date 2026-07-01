@@ -89,15 +89,24 @@
 
     <div class="box">
         <div id="dropZone" class="drop-zone">
-            ここに `monitor.html` からダウンロードしたCSVファイルをドラッグ＆ドロップ
+            ここに ROBOBIKE からダウンロードしたログファイル(CSV)をドラッグ＆ドロップ
         </div>
         <input type="file" id="fileInput" style="display:none" accept=".csv">
 
         <!-- 入力/出力 選択UI（データ読み込み後に表示） -->
-        <div id="controls" class="controls">
-            <label>入力 (Input): <select id="inputSelect"></select></label>
-            <span style="margin: 0 10px; font-weight:bold;">→</span>
-            <label>出力 (Output): <select id="outputSelect"></select></label>
+        <div id="controls" class="controls"
+            style="display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; background-color: #eef5ff; padding: 15px; border-radius: 5px; width: 100%; box-sizing: border-box;">
+            <label style="display: inline-flex; align-items: center; white-space: nowrap; font-weight: bold;">
+                入力 (Input): <select id="inputSelect"
+                    style="margin-left: 8px; width: auto; min-width: 150px; max-width: 250px; padding: 4px; border-radius: 4px; border: 1px solid #ccc;"></select>
+            </label>
+
+            <span style="margin: 0 15px; font-weight: bold; font-size: 18px;">→</span>
+
+            <label style="display: inline-flex; align-items: center; white-space: nowrap; font-weight: bold;">
+                出力 (Output): <select id="outputSelect"
+                    style="margin-left: 8px; width: auto; min-width: 150px; max-width: 250px; padding: 4px; border-radius: 4px; border: 1px solid #ccc;"></select>
+            </label>
         </div>
 
         <div class="info">
@@ -119,8 +128,7 @@
             <canvas id="phaseChart"></canvas>
         </div>
     </div>
-    <!-- 技術解説セクション -->
-    <!-- 技術解説セクション -->
+
     <!-- 技術解説セクション -->
     <div class="box" style="margin-top: 40px; background: #fafafa; border-left: 4px solid #0055ff;">
         <div
@@ -238,8 +246,8 @@
                     outputSelect.appendChild(opt2);
                 });
 
-                // デフォルト選択（SV_STR と SV_POS があればそれを、無ければ適当な列を）
-                let defaultIn = currentHeaders.findIndex(h => h === 'SV_STR');
+                // デフォルト選択（SWP_SG と SV_POS があればそれを、無ければ適当な列を）
+                let defaultIn = currentHeaders.findIndex(h => h === 'SWP_SG');
                 let defaultOut = currentHeaders.findIndex(h => h === 'SV_POS');
                 inputSelect.value = defaultIn !== -1 ? defaultIn : (currentHeaders.length > 3 ? 3 : 0);
                 outputSelect.value = defaultOut !== -1 ? defaultOut : (currentHeaders.length > 11 ? 11 : 1);
