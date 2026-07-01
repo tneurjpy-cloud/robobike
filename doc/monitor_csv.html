@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>ROBOBIKE Analyzer (CSV Mode)</title>
+    <title>ROBOBIKE Analyzer (Dynamic CSV Mode)</title>
     <style>
         body {
             background-color: #121212;
@@ -142,109 +142,125 @@
     </div>
 
     <script>
-        const MON_CSV_KEYS = [
-            "HEADER",   // 0: 'a'
-            "TIME_MS",  // 1
-            "SV_DRV",   // 2
-            "SV_STR",   // 3
-            "SV_STD",   // 4
-            "SWP_SG",   // 5
-            "SV_POS",   // 6
-            "GY_ROLL",  // 7
-            "GY_YAW",   // 8
-            "GY_PITCH", // 9
-            "ACC_X",    // 10
-            "ACC_Y",    // 11
-            "ACC_Z",    // 12
-        ];
-        const colors = [
-            null, null,
-            "#ff4444",  // 2: SV_DRV
-            "#ff8c00",  // 3: SV_STR
-            "#ff44ff",  // 4: SV_STD
-            "#ffb6c1",  // 5: SWP_SG
-            "#ffff44",  // 6: SV_POS
-            "#4444ff",  // 7: GY_ROLL
-            "#00ffff",  // 8: GY_YAW
-            "#9400d3",  // 9: GY_PITCH
-            "#44ff44",  // 10: ACC_X
-            "#00aa00",  // 11: ACC_Y
-            "#adff2f",  // 12: ACC_Z
+        // 色パターン（多めに定義。足りない場合はループして使い回します）
+        const colorPalette = [
+            "#ff4444", "#ff8c00", "#ff44ff", "#ffb6c1", "#ffff44",
+            "#4444ff", "#00ffff", "#9400d3", "#44ff44", "#00aa00",
+            "#adff2f", "#008b8b", "#ff1493", "#1e90ff", "#00ff7f"
         ];
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const tableRow = document.getElementById('tableRow');
         const container = document.getElementById('monitor-container');
-        const col_count = MON_CSV_KEYS.length;
 
-        let parsedLines = []; // パースされた全CSV行データを入れる配列
-        const PIXEL_PER_DATA = 1; // 1データ点あたり横に何ピクセル進むか（お好みで調整可能）
+        let csvKeys = [];      // ファイルから読み込んだヘッダー項目を格納
+        let colors = [];       // 各項目に対応する色
+        let parsedLines = [];  // パースされた全CSV行データを入れる配列
+        const PIXEL_PER_DATA = 1;
         let svPosEma = 0;
-
-        // テーブルヘッダーとチェックボックスの動的生成
-        MON_CSV_KEYS.forEach((key, i) => {
-            if (i < 2) return;
-            const isChecked = (key === "GY_PITCH" || key.startsWith("ACC_") || key === "SV_POS") ? "" : "checked";
-            const td = document.createElement('td');
-            td.innerHTML = `
-                <div class="cell-content">
-                    <input type="checkbox" id="chk-${i}" ${isChecked} onchange="renderData()">
-                    <span class="label-text" style="color:${colors[i]}">${key}</span>
-                </div>`;
-            const numTd = document.createElement('td');
-            numTd.className = 'num-cell';
-            numTd.id = 'val-' + i;
-            numTd.style.color = colors[i];
-            tableRow.appendChild(td);
-            tableRow.appendChild(numTd);
-        });
 
         // 縦幅のコンテナリサイズ設定
         function resizeContainer() {
             container.style.height = (window.innerHeight - 80) + 'px';
         }
 
-        // ファイルが選択された時の処理
+        // テーブルヘッダーとチェックボックスの動的生成関数
+        function rebuildUI() {
+            tableRow.innerHTML = ""; // 既存のUIをクリア
+            colors = [null, null];   // HEADERとTIME_MSの分を空ける
+
+            csvKeys.forEach((key, i) => {
+                if (i < 2) return;
+
+                // 色の割り当て
+                const color = colorPalette[(i - 2) % colorPalette.length];
+                colors.push(color);
+
+                // 初期状態でチェックを外す条件（元コードのロジックを踏襲）
+                const isChecked = (key === "GY_PITCH" || key.startsWith("ACC_") || key === "SV_POS") ? "" : "checked";
+
+                const td = document.createElement('td');
+                td.innerHTML = `
+                    <div class="cell-content">
+                        <input type="checkbox" id="chk-${i}" ${isChecked} onchange="renderData()">
+                        <span class="label-text" style="color:${color}">${key}</span>
+                    </div>`;
+                const numTd = document.createElement('td');
+                numTd.className = 'num-cell';
+                numTd.id = 'val-' + i;
+                numTd.style.color = color;
+
+                tableRow.appendChild(td);
+                tableRow.appendChild(numTd);
+            });
+        }
+
+        // ファイルデータを処理するコア関数
+        function parseAndProcessCSV(text) {
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            if (lines.length === 0) return;
+
+            // 1行目からヘッダー項目を取得
+            csvKeys = lines[0].split(',').map(k => k.trim());
+            rebuildUI(); // UIをファイルに合わせて再構築
+
+            parsedLines = [];
+            svPosEma = 0;
+
+            lines.forEach((line, idx) => {
+                // 1行目（ヘッダー行）自体はスキップ
+                if (idx === 0) return;
+
+                const p = line.split(',');
+                if (p.length > 2 && p[0] === 'a') {
+                    parsedLines.push(p);
+                }
+            });
+
+            if (parsedLines.length > 0) {
+                // SV_POSとSV_STRのインデックスを動的に検索
+                const svPosIdx = csvKeys.indexOf("SV_POS");
+                const svStrIdx = csvKeys.indexOf("SV_STR");
+
+                // 両方の項目が存在する場合のみEMAを計算
+                if (svPosIdx !== -1 && svStrIdx !== -1) {
+                    parsedLines.forEach(p => {
+                        if (p.length > svPosIdx && p.length > svStrIdx) {
+                            let val = parseFloat(p[svPosIdx]);
+                            let strVal = parseFloat(p[svStrIdx]);
+                            if (strVal === 0) {
+                                svPosEma = (val * 0.1) + (svPosEma * 0.9);
+                            }
+                        }
+                    });
+                }
+
+                renderData();
+            }
+        }
+
+        // ファイル選択時のハンドラ
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function (e) {
-                const text = e.target.result;
-                // 行ごとに分割、ヘッダーをスキップしてパース
-                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-                parsedLines = [];
-                svPosEma = 0; // ファイル読み込みごとにEMAをリセット
-
-                lines.forEach(line => {
-                    const p = line.split(',');
-                    // 'a'から始まらない行、またはヘッダー行("HEADER")は除外
-                    if (p.length >= col_count && p[0] === 'a') {
-                        parsedLines.push(p);
-                    }
-                });
-
-                if (parsedLines.length > 0) {
-                    // 事前にSV_POS用のEMAを計算（元のロジックをシミュレート）
-                    let currentSvStr = 0;
-                    parsedLines.forEach(p => {
-                        let val = parseFloat(p[6]); // SV_POS
-                        let strVal = parseFloat(p[3]); // SV_STR
-                        if (strVal === 0) {
-                            svPosEma = (val * 0.1) + (svPosEma * 0.9);
-                        }
-                    });
-
-                    renderData();
-                }
+                parseAndProcessCSV(e.target.result);
             };
             reader.readAsText(file);
         }
 
-        // ★一括描画コアロジック（スクロール対応）
+        // ファイルドロップ時の共通処理
+        function processFile(file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                parseAndProcessCSV(e.target.result);
+            };
+            reader.readAsText(file);
+        }
+
+        // ★一括描画コアロジック
         function renderData() {
             if (parsedLines.length === 0) return;
 
@@ -259,25 +275,24 @@
             const accScale = (innerH / 2) / 20.0;
             const maxVal = 100 / userScale;
 
-            // 【ミソ】全データを並べるためにキャンバスの横幅を動的に巨大化させる
             const calculatedWidth = parsedLines.length * PIXEL_PER_DATA;
             canvas.width = Math.max(calculatedWidth, window.innerWidth - 40);
             canvas.height = h;
 
-            // 画面クリア
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, canvas.width, h);
 
             let lastX = -1;
-            let lastY = new Array(col_count).fill(-1);
+            let lastY = new Array(csvKeys.length).fill(-1);
             let lastDrawnSecond = -1;
 
-            // 1行ずつキャンバス上に一気にプロットしていく
+            const svPosIdx = csvKeys.indexOf("SV_POS");
+
             parsedLines.forEach((p, index) => {
                 const timeMs = parseInt(p[1]);
                 const nextX = index * PIXEL_PER_DATA;
 
-                // 1. 時間グリッド（秒の切り替わり線）を描画
+                // 時間グリッドの描画
                 const currentSecond = Math.floor(timeMs / 1000);
                 if (currentSecond !== lastDrawnSecond && index > 0) {
                     ctx.strokeStyle = "#333";
@@ -289,6 +304,7 @@
 
                     ctx.fillStyle = "#00ff00";
                     ctx.font = "12px Consolas";
+                    ctx.textBaseline = "alphabetic";
                     ctx.textAlign = 'right';
                     ctx.fillText(currentSecond + "s", nextX - 5, h - 8);
                     ctx.textAlign = 'start';
@@ -296,31 +312,33 @@
                     lastDrawnSecond = currentSecond;
                 }
 
-                // 2. 各チャンネルのラインを描画
-                for (let i = 2; i < col_count; i++) {
+                // 各チャンネルのラインを描画
+                for (let i = 2; i < csvKeys.length; i++) {
                     const chk = document.getElementById('chk-' + i);
                     if (!chk || !chk.checked) {
                         lastY[i] = -1;
                         continue;
                     }
 
+                    if (i >= p.length || p[i] === undefined || p[i] === "") {
+                        lastY[i] = -1;
+                        continue;
+                    }
+
                     let val = parseFloat(p[i]);
                     let currentScale = servoScale;
+                    const keyName = csvKeys[i];
 
-                    switch (i) {
-                        case 2: case 3: case 4: case 5:
-                            currentScale = servoScale;
-                            break;
-                        case 6: // SV_POS (EMAオフセットを適用)
-                            currentScale = servoScale;
-                            val -= svPosEma;
-                            break;
-                        case 7: case 8: case 9:
-                            currentScale = gyroScale;
-                            break;
-                        case 10: case 11: case 12:
-                            currentScale = accScale;
-                            break;
+                    // 項目名（プレフィックス）に基づいてスケールを自動切り替え
+                    if (keyName.startsWith("GY_")) {
+                        currentScale = gyroScale;
+                    } else if (keyName.startsWith("ACC_")) {
+                        currentScale = accScale;
+                    } else if (i === svPosIdx) {
+                        currentScale = servoScale;
+                        val -= svPosEma; // SV_POS用のEMAオフセット
+                    } else {
+                        currentScale = servoScale;
                     }
 
                     const nextY = midY - (val * currentScale);
@@ -340,7 +358,7 @@
                 lastX = nextX;
             });
 
-            // 3. 横基準線（水平グリッド：最大値・ゼロ・最小値）を最前面にオーバーレイ描画
+            // 横基準線とテキストラベルのオーバーレイ描画
             for (let v of [maxVal, 0, -maxVal]) {
                 const yPos = midY - (v * servoScale);
                 ctx.strokeStyle = (v === 0) ? "#666" : "#222";
@@ -350,7 +368,6 @@
                 ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
                 ctx.stroke();
 
-                // テキストラベルを定期的な間隔（1000pxごと）に複製してスクロール中も見やすくする
                 for (let labelX = 5; labelX < canvas.width; labelX += 1000) {
                     if (v === 0) {
                         ctx.fillStyle = "#aaaaaa";
@@ -361,19 +378,29 @@
                         ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), labelX, Math.floor(yPos) + 6);
                         ctx.fillStyle = "#ffff44";
                         ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), labelX + 75, Math.floor(yPos) + 6);
-                        ctx.fillStyle = "#00ffff";
-                        let accLabelVal = (v === maxVal) ? 20.0 : -20.0;
-                        ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", labelX + 150, Math.floor(yPos) + 6);
+
+                        // ファイルに加速度(ACC)が含まれる場合のみA:の基準値を表示
+                        if (csvKeys.some(k => k.startsWith("ACC_"))) {
+                            ctx.fillStyle = "#00ffff";
+                            let accLabelVal = (v === maxVal) ? 20.0 : -20.0;
+                            ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", labelX + 150, Math.floor(yPos) + 6);
+                        }
                     }
                 }
             }
 
-            // 4. 右端（最終行）の数値をテーブルに反映
+            // 右端（最終行）の数値をテーブルに反映
             const lastRow = parsedLines[parsedLines.length - 1];
-            for (let i = 2; i < col_count; i++) {
-                const val = parseFloat(lastRow[i]);
+            for (let i = 2; i < csvKeys.length; i++) {
                 const el = document.getElementById('val-' + i);
-                if (el) el.innerText = isNaN(val) ? "---" : val.toFixed(2);
+                if (!el) continue;
+
+                if (i >= lastRow.length || lastRow[i] === undefined || lastRow[i] === "") {
+                    el.innerText = "---";
+                } else {
+                    const val = parseFloat(lastRow[i]);
+                    el.innerText = isNaN(val) ? "---" : val.toFixed(2);
+                }
             }
         }
 
@@ -385,69 +412,29 @@
         });
 
         // --- ドラッグ＆ドロップ（D&D）制御ロジック ---
-
-        // ブラウザがファイルそのものを開いてしまうデフォルト挙動を防止
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             window.addEventListener(eventName, (e) => e.preventDefault(), false);
         });
 
-        // 画面内にファイルがドラッグされてきたときの視覚的フィードバック（お好みで）
         window.addEventListener('dragover', () => {
-            container.style.borderColor = '#007bff'; // ドラッグ中は枠線を青くする
+            container.style.borderColor = '#007bff';
         });
 
         window.addEventListener('dragleave', () => {
-            container.style.borderColor = '#666'; // 離れたら元に戻す
+            container.style.borderColor = '#666';
         });
 
-        // ファイルがドロップされた瞬間の処理
         window.addEventListener('drop', (e) => {
-            container.style.borderColor = '#666'; // 枠線を元に戻す
-
+            container.style.borderColor = '#666';
             const files = e.dataTransfer.files;
             if (files.length === 0) return;
-
             const file = files[0];
-            // CSVファイルであるか簡易チェック
             if (file.name.endsWith('.csv') || file.type === 'text/csv') {
                 processFile(file);
             } else {
                 alert('CSVファイルのみ受け付けています。');
             }
         });
-
-        // ファイル読み込み処理を共通化するための関数
-        function processFile(file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const text = e.target.result;
-                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-
-                parsedLines = [];
-                svPosEma = 0;
-
-                lines.forEach(line => {
-                    const p = line.split(',');
-                    if (p.length >= col_count && p[0] === 'a') {
-                        parsedLines.push(p);
-                    }
-                });
-
-                if (parsedLines.length > 0) {
-                    let currentSvStr = 0;
-                    parsedLines.forEach(p => {
-                        let val = parseFloat(p[6]); // SV_POS
-                        let strVal = parseFloat(p[3]); // SV_STR
-                        if (strVal === 0) {
-                            svPosEma = (val * 0.1) + (svPosEma * 0.9);
-                        }
-                    });
-
-                    renderData();
-                }
-            };
-            reader.readAsText(file);
-        }
     </script>
 </body>
 
