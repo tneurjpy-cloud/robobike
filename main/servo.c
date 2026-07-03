@@ -22,7 +22,7 @@ ____|____________________________________________________|_____
 sync_timer(gptimer)
 CB         cb0          cb1           cb2          cb3
 ____+------|------------|-------------|------------|_____+-----
-    0     550us        1550us        2550us       3550us
+    0     400us        1400us        2400us       3400us
     FIRSTWT  STGINTRVL    STGINTRVL    STGINTRVL
 
 CallBackFunctions
@@ -466,8 +466,6 @@ static void ControlTask(void *pvParameters)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
-        gpio_set_level(IO_1, 1); // IR LED ON
-
         // I2Cで待たされる前に、前回値を保険として先出ししておく
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
@@ -475,19 +473,13 @@ static void ControlTask(void *pvParameters)
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
 
         gyroServiceLoop(); // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
-
         gpio_set_level(IO_1, 0); // IR LED OFF
-        gpio_set_level(IO_1, 1); // IR LED
 
         do_mot_out();
         do_str_cmd_calc(); // auto circling calc
         do_ex1_out();
         str_easing();
-        gpio_set_level(IO_1, 0); // IR LED OFF
-        gpio_set_level(IO_1, 1); // IR LED
         put_control_data();
-
-        gpio_set_level(IO_1, 0); // IR LED OFF
     }
 }
 
@@ -564,6 +556,7 @@ static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
     {
         return;
     }
+    gpio_set_level(IO_1, 1); // IR LED ON
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_set_alarm_action(sync_timer, &first_alarm);
     gptimer_start(sync_timer);
