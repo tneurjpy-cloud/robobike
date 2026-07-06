@@ -168,7 +168,7 @@ static uint32_t duty_mot_prev = 2048; // 初期値ニュートラル(1500us相�
 #define END_FREQ 40.0f     // 終了周波数 (Hz)
 #define SWEEP_TIME 30.0f   // スイープ時間
 #define TWO_PI 6.2831853f  // 2pai rad
-#define SWEEP_W 10.0f      // sweep width(deg)
+#define SWEEP_W 5.0f      // sweep width(deg)
 
 bool doSweep = false;
 float current_time = 0.0f; // sec

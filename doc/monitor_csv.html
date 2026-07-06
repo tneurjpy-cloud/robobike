@@ -54,6 +54,16 @@
             height: 100%;
         }
 
+        /* 追加：ファイル名表示エリアのスタイル */
+        #fileNameDisplay {
+            font-size: 14px;
+            color: #bbb;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         select {
             padding: 4px;
             border-radius: 4px;
@@ -67,7 +77,8 @@
             flex-grow: 1;
             table-layout: fixed;
             width: 100%;
-            max-width: calc(100% - 250px);
+            max-width: calc(100% - 450px);
+            /* ファイル名表示分の幅を考慮 */
         }
 
         #valueTable td {
@@ -125,6 +136,8 @@
             <button class="btn-file">Load CSV File</button>
             <input type="file" id="csvFile" accept=".csv" onchange="handleFileSelect(event)">
         </div>
+        <!-- 追加：ファイル名表示用の要素 -->
+        <div id="fileNameDisplay">No file selected</div>
         <select id="scaleSelect" style="padding: 4px; border-radius: 4px;" onchange="renderData()">
             <option value="1.0" selected>x1</option>
             <option value="2.0">x2</option>
@@ -153,6 +166,7 @@
         const ctx = canvas.getContext('2d');
         const tableRow = document.getElementById('tableRow');
         const container = document.getElementById('monitor-container');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
 
         let csvKeys = [];      // ファイルから読み込んだヘッダー項目を格納
         let colors = [];       // 各項目に対応する色
@@ -244,6 +258,7 @@
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
+            fileNameDisplay.innerText = file.name; // ファイル名を表示に追加
             const reader = new FileReader();
             reader.onload = function (e) {
                 parseAndProcessCSV(e.target.result);
@@ -368,23 +383,23 @@
                 ctx.lineTo(canvas.width, Math.floor(yPos) + 0.5);
                 ctx.stroke();
 
-                for (let labelX = 5; labelX < canvas.width; labelX += 1000) {
-                    if (v === 0) {
-                        ctx.fillStyle = "#aaaaaa";
-                        ctx.font = "12px sans-serif";
-                        ctx.fillText("0", labelX, Math.floor(yPos) - 4);
-                    } else {
-                        ctx.fillStyle = "#ff4444";
-                        ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), labelX, Math.floor(yPos) + 6);
-                        ctx.fillStyle = "#ffff44";
-                        ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), labelX + 75, Math.floor(yPos) + 6);
+                // 変更点：ループを廃止し、左端（最初の一回だけ：X=5）にラベルを描画
+                const labelX = 5;
+                if (v === 0) {
+                    ctx.fillStyle = "#aaaaaa";
+                    ctx.font = "12px sans-serif";
+                    ctx.fillText("0", labelX, Math.floor(yPos) - 4);
+                } else {
+                    ctx.fillStyle = "#ff4444";
+                    ctx.fillText("S:" + Math.round(v).toString().padStart(4, ' '), labelX, Math.floor(yPos) + 6);
+                    ctx.fillStyle = "#ffff44";
+                    ctx.fillText("G:" + Math.round(v / 2).toString().padStart(5, ' '), labelX + 75, Math.floor(yPos) + 6);
 
-                        // ファイルに加速度(ACC)が含まれる場合のみA:の基準値を表示
-                        if (csvKeys.some(k => k.startsWith("ACC_"))) {
-                            ctx.fillStyle = "#00ffff";
-                            let accLabelVal = (v === maxVal) ? 20.0 : -20.0;
-                            ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", labelX + 150, Math.floor(yPos) + 6);
-                        }
+                    // ファイルに加速度(ACC)が含まれる場合のみA:の基準値を表示
+                    if (csvKeys.some(k => k.startsWith("ACC_"))) {
+                        ctx.fillStyle = "#00ffff";
+                        let accLabelVal = (v === maxVal) ? 20.0 : -20.0;
+                        ctx.fillText("A:" + accLabelVal.toFixed(2).padStart(6, ' ') + "m/s2", labelX + 150, Math.floor(yPos) + 6);
                     }
                 }
             }
@@ -430,6 +445,7 @@
             if (files.length === 0) return;
             const file = files[0];
             if (file.name.endsWith('.csv') || file.type === 'text/csv') {
+                fileNameDisplay.innerText = file.name; // ファイル名を表示に追加
                 processFile(file);
             } else {
                 alert('CSVファイルのみ受け付けています。');

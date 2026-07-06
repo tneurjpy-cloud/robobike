@@ -314,7 +314,6 @@
                 if (Math.abs(currPhase - prevPhase) > 180) {
                     // 線を切り離すため、現在のポイントのデータを null に設定
                     phasePoints[i] = null;
-                    gainPoints[i] = null; // ゲイン側も連動させる場合
                 }
             }
             drawBodePlots(freqPoints, gainPoints, phasePoints);
@@ -345,7 +344,7 @@
 
                 let max_u = Math.max(...u_sub);
                 let min_u = Math.min(...u_sub);
-                if ((max_u - min_u) / 2.0 < 5.0) continue;
+                if ((max_u - min_u) / 2.0 < 2.5) continue;
 
                 let cross_indices = [];
                 for (let i = 1; i < u_sub.length; i++) {
@@ -413,7 +412,7 @@
                     y: {
                         title: { display: true, text: 'Gain [dB]' },
                         min: -40,
-                        max: 10,
+                        max: 30,
                         grid: { color: '#ddd' }
                     }
                 },

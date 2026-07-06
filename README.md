@@ -9,6 +9,7 @@ ESP-IDF components and tools paths depend on installation location
 * Change Log  
 ```text
 Date        CODE    DATA    Description
+2026.07.05  1033       4    Add: Data monitor and its related files.
 2026.06.05  1032       4    Dbg: LED control configTICK_RATE_HZ:100
 2026.05.26  1031       4    Chg: Servo PWM Rising Times. Lo-pass filter T
 2026.05.19  1030    1022    Chg: Axis polarity inversion / No use GPIO Int. for Task
