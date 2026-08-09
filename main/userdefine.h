@@ -6,8 +6,8 @@ Copyright 2026.06.05 M.Tanaami
 
 #pragma once
 
-#define PROGVER 1033 // version for program
-#define DATAVER 4    // version for saved data in NVS
+#define PROGVER 1034 // version for program
+#define DATAVER 5    // version for saved data in NVS
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -103,6 +103,7 @@ typedef struct
     float yaw_coeff;      // yaw‑rate feedback coefficient
     int str_turn;         //
     int str_cmd_speed;    // steering command changeing speed deg/sec
+    bool autoCircling;    // auto circling mode
     uint32_t CRC;         //
 } TSave;
 
@@ -145,7 +146,6 @@ extern TSave saved;
 extern const TSave savedefault;
 
 extern bool auto_en;
-extern bool autoCircling; // do auto circling
 
 extern volatile uint32_t userLastControlTime;
 
@@ -233,7 +233,6 @@ void waitms(uint32_t t);
 bool isNms(uint32_t *lastNms, uint32_t Nms);
 void userdeviceinit(void);
 void servo_init(void);
-void control_init(void);
 void do_str_cmd_calc(void);
 void put_control_data(void);
 esp_err_t put_command(control_msg_t *msg);

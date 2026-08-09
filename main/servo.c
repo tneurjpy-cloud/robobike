@@ -69,30 +69,28 @@ float ex1_cmd;  // deg +-90.0f
 float ex1_out;  // deg
 float ex1_step; // deg/cycle
 
-bool autoCircling = true;
-TRunState runState = rsOuter;
-
 TSave saved;
 float *pyaw_coeff;
 
 const TSave savedefault = {
-    DATAVER,                                      // (int) data format version
-    0,                                            // (uint32_t) operation time in sec
-    false,                                        // isChecked
-    0.030f,                                       // gain_str;
-    0.030f,                                       // gain_str_diff
-    12.0f,                                        // gain_w_roll;
-    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},         // acc_offset
-    {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.000f}, // acc_dir
-    0.040f,                                       // str_diff_alph
-    0,                                            // (int) steering angle neutral R= +deg
-    60,                                           // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
-    20,                                           // (int) stand for start
-    0.0f,                                         // run-speed feedback coefficient
-    0.011f,                                       // yaw‑rate feedback coefficient
-    40,                                           // (int) str_turn deg
-    30,                                           // (int) str_cmd_speed deg/sec
-    0xFFFFFFFF                                    // (uint32_t) CRC
+    DATAVER,                                    // (int) data format version
+    0,                                          // (uint32_t) operation time in sec
+    false,                                      // isChecked
+    0.030f,                                     // gain_str;
+    0.030f,                                     // gain_str_diff
+    13.0f,                                      // gain_w_roll;
+    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},       // acc_offset
+    {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.0f}, // acc_dir
+    0.040f,                                     // str_diff_alph
+    0,                                          // (int) steering angle neutral R= +deg
+    60,                                         // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
+    20,                                         // (int) stand for start
+    0.0f,                                       // run-speed feedback coefficient
+    0.011f,                                     // yaw‑rate feedback coefficient
+    40,                                         // (int) str_turn deg
+    30,                                         // (int) str_cmd_speed deg/sec
+    false,                                      // (bool) autoCircling
+    0xFFFFFFFF                                  // (uint32_t) CRC
 };
 
 //// R/C servo pulse width making
@@ -168,7 +166,7 @@ static uint32_t duty_mot_prev = 2048; // 初期値ニュートラル(1500us相�
 #define END_FREQ 40.0f     // 終了周波数 (Hz)
 #define SWEEP_TIME 30.0f   // スイープ時間
 #define TWO_PI 6.2831853f  // 2pai rad
-#define SWEEP_W 5.0f      // sweep width(deg)
+#define SWEEP_W 5.0f       // sweep width(deg)
 
 bool doSweep = false;
 float current_time = 0.0f; // sec
@@ -370,6 +368,7 @@ void set_str_cmd(float angle, float step)
 
 static void str_easing()
 {
+    extern volatile TRunState runState;
     switch (runState)
     {
     case rsInner_Correct:
@@ -466,6 +465,7 @@ static void ControlTask(void *pvParameters)
     {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
+        gpio_set_level(IO_1, 1); // IR LED ON
         // I2Cで待たされる前に、前回値を保険として先出ししておく
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
@@ -473,10 +473,10 @@ static void ControlTask(void *pvParameters)
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
 
         gyroServiceLoop(); // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
-        gpio_set_level(IO_1, 0); // IR LED OFF
 
+        do_str_cmd_calc();       // auto circling calc
+        gpio_set_level(IO_1, 0); // IR LED OFF
         do_mot_out();
-        do_str_cmd_calc(); // auto circling calc
         do_ex1_out();
         str_easing();
         put_control_data();
@@ -556,7 +556,6 @@ static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
     {
         return;
     }
-    gpio_set_level(IO_1, 1); // IR LED ON
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_set_alarm_action(sync_timer, &first_alarm);
     gptimer_start(sync_timer);
@@ -568,7 +567,6 @@ void servo_init()
     pyaw_coeff = &saved.yaw_coeff;
 
     // 制御計算タスク生成
-    control_init();
     xTaskCreate(ControlTask, "ControlTask", 2048, NULL, configMAX_PRIORITIES - 1, &xControlTaskHandle);
 
     // サーボ信号検出ポート設定

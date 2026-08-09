@@ -300,7 +300,7 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_0, 1);
 
-    // IO1
+    // IO1 FOR autoCircling
     io_conf.pin_bit_mask = (1ULL << IO_1);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -309,7 +309,7 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_1, 0);
 
-    // IO2
+    // IO2 FOR autoCircling
     io_conf.pin_bit_mask = (1ULL << IO_2);
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;

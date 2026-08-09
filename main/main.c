@@ -11,7 +11,6 @@ void app_main(void)
 {
     int maxcount = 0;
     uint32_t lastdone;
-    bool ShowTaskDone = false;
 
     ESP_LOGI(TAG, "Start ROBOBIKE system");
     esp_log_level_set("*", ESP_LOG_INFO);
@@ -30,6 +29,7 @@ void app_main(void)
     for (;;)
     {
         waitms(100);
+
         if (auto_en && (str_out >= (STRMAX - 2) || str_out <= -(STRMAX - 2)))
         { // 転倒判定
             if (maxcount >= 2)
@@ -53,16 +53,13 @@ void app_main(void)
             maxcount = 0;
         }
 
-        if (isNms(&lastdone, 60000))
+        if (isNms(&lastdone, 1000))
         {
+            // extern bool IO2;
+            // ESP_LOGI(TAG, "IO2=%d", IO2);
             if ((mot_out == 0.0f) && ((millis() - userLastControlTime) >= SLEEP_DURATION_MS))
             {
                 deepSleep(0);
-            }
-            if (!ShowTaskDone) // 起動1分後にタスクの状態を表示する
-            {
-                ShowTaskDone = true;
-                // showTasks();
             }
         }
     }

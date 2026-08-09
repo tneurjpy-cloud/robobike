@@ -58,7 +58,7 @@ char *get_edit_data()
              saved.ang_std_nut,
              saved.str_turn,
              saved.yaw_coeff,
-             autoCircling,
+             saved.autoCircling,
              str_cmd_rate,
              saved.str_cmd_speed,
              doSweep);
@@ -502,12 +502,12 @@ esp_err_t put_command(control_msg_t *msg)
 
     case IR_ON:
         set_mot_duty(0.0f, 0.0f);
-        autoCircling = true;
+        saved.autoCircling = true;
         break;
 
     case IR_OFF:
         set_mot_duty(0.0f, 0.0f);
-        autoCircling = false;
+        saved.autoCircling = false;
         break;
 
     case bt_yaw_coeffUp:
