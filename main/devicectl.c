@@ -174,23 +174,6 @@ void nvs_init()
     }
 }
 
-//// deep sleep [sec]seconds /////////////////////////////////////////
-//// msec: if 0, sleep without wakeup
-
-void deepSleep(uint32_t wup)
-{
-    ESP_LOGI(TAG, "Sleeping: %ums", wup);
-
-    savenvs();
-    IMU_sleep();
-
-    if (wup != 0)
-    {
-        esp_sleep_enable_timer_wakeup((uint64_t)wup * 1000); // usec
-    }
-    esp_deep_sleep_start();
-}
-
 ////////// Check N ms term ///////////
 bool isNms(uint32_t *lastNms, uint32_t Nms)
 {
@@ -209,7 +192,6 @@ bool isNms(uint32_t *lastNms, uint32_t Nms)
 }
 
 //// LED PWM using ////////////////////////////////////////////////////////////////
-#define LED_GPIO IO_3
 #define LED_CHANNEL LEDC_CHANNEL_3
 #define LED_TIMER LEDC_TIMER_1
 #define LED_MODE LEDC_LOW_SPEED_MODE
@@ -338,4 +320,32 @@ void userdeviceinit()
     // LED1  setup
     init_led_pwm();
     set_led_brightness(LEDLOW);
+}
+
+//// deep sleep [sec]seconds /////////////////////////////////////////
+//// msec: if 0, sleep without wakeup
+void deepSleep(uint32_t wup)
+{
+    ESP_LOGI(TAG, "Sleeping: %ums", wup);
+
+    savenvs();
+    stopServo = true;
+    waitTaskms(100);
+    esp_wifi_stop();
+    esp_wifi_deinit();
+    IMU_sleep();
+    ledc_stop(LED_MODE, LED_CHANNEL, 0); 
+    gpio_reset_pin(LED_GPIO);
+    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_level(LED_GPIO, 0);
+    gpio_set_level(IO_0, 0);
+    gpio_set_level(IO_1, 0);
+    gpio_set_level(IO_20, 0);
+    gpio_set_level(IO_21, 0);
+
+    if (wup != 0)
+    {
+        esp_sleep_enable_timer_wakeup((uint64_t)wup * 1000ULL); // usec
+    }
+    esp_deep_sleep_start();
 }

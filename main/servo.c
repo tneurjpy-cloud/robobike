@@ -1,7 +1,7 @@
 /*//////////////////////////////////////////////////////////////////////////
     servo.c
 
-サーボ制御用タイマーchart (4ステージ・4000usフレーム・全サーボ完全相乗り版)
+サーボ制御用タイマーchart (4ステージ・4000usフレーム・全サーボ相乗り版)
 
     == : H level
     __ : L level or stop
@@ -71,6 +71,7 @@ float ex1_step; // deg/cycle
 
 TSave saved;
 float *pyaw_coeff;
+volatile bool stopServo = false;
 
 const TSave savedefault = {
     DATAVER,                                    // (int) data format version
@@ -142,14 +143,7 @@ static ledc_channel_config_t svch_ex1 = {
 // gpTimer for synchronization
 static gptimer_handle_t sync_timer;
 static TaskHandle_t xControlTaskHandle;
-typedef enum
-{
-    cb0 = 0,
-    cb1,
-    cb2,
-    cb3,
-} TSyncCBStep;
-static volatile TSyncCBStep sync_step;
+volatile TSyncCBStep sync_step = cb0;
 
 // タスクが計算した std（ex1）のs2用可変Dutyを一時保持するバッファ変数
 static volatile uint32_t duty_ex1_s2 = 0;
@@ -505,7 +499,6 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
         break;
 
     case cb1:
-
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_0);
@@ -528,15 +521,17 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
         break;
 
     case cb3:
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_100);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_100);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
-
+        if (!stopServo)
+        {
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_100);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_100);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+            sync_step = cb0;
+        }
         gptimer_stop(timer); // 自走終了 外部割込み待ちへ
-        sync_step = cb0;
         break;
     }
 
@@ -588,7 +583,6 @@ void servo_init()
         .resolution_hz = TIMER_RES_HZ,
     };
     gptimer_new_timer(&timer_config, &sync_timer);
-    sync_step = cb0;
     gptimer_event_callbacks_t cbs = {
         .on_alarm = sync_timer_isr_cb,
     };

@@ -6,7 +6,7 @@ Copyright 2026.06.05 M.Tanaami
 
 #pragma once
 
-#define PROGVER 1034 // version for program
+#define PROGVER 1035 // version for program
 #define DATAVER 5    // version for saved data in NVS
 
 #include <stdint.h>
@@ -61,6 +61,7 @@ Copyright 2026.06.05 M.Tanaami
 #define IO_20 20
 #define IO_21 21
 
+#define LED_GPIO IO_3
 #define I2C_MASTER_SCL_IO IO_7
 #define I2C_MASTER_SDA_IO IO_6
 #define GPIO_DRV IO_4
@@ -114,7 +115,15 @@ typedef enum         // 自動旋回修正用状態定義
     rsInner_Stable   // 内側走行、定常旋回
 } TRunState;
 
-#define STRMAX 65
+typedef enum    // servo sync timer callback step
+{
+    cb0 = 0,
+    cb1,
+    cb2,
+    cb3,
+} TSyncCBStep;
+
+#define STRMAX 70
 #define STR_STOP 40
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
@@ -128,7 +137,8 @@ typedef enum         // 自動旋回修正用状態定義
 
 #define LEDHIGH 255
 #define LEDLOW 32
-#define SLEEP_DURATION_MS (30 * 60 * 1000UL) // 30 minutes to sleep
+#define SLEEPINTERVAL (10 * 1000UL) // 10 sec to sleep
+#define SLEEP_DURATION_MS (15 * 60 * 1000UL) // 15min to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
 #define waitTaskms(xms) vTaskDelay(pdMS_TO_TICKS(xms))
 
@@ -148,6 +158,9 @@ extern const TSave savedefault;
 extern bool auto_en;
 
 extern volatile uint32_t userLastControlTime;
+
+extern volatile TSyncCBStep sync_step;
+extern volatile bool stopServo;
 
 // webserver handlers
 extern const httpd_uri_t root;

@@ -7,13 +7,36 @@
 static const char *TAG = "main";
 
 ////////////////////////////////////////////////////////////////////////
+void check_sleep_indicator(void)
+{
+    esp_sleep_source_t cause = esp_sleep_get_wakeup_causes();
+
+    if (cause != ESP_SLEEP_WAKEUP_ALL)
+    {
+        gpio_reset_pin(LED_GPIO);
+        gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+
+        // 一瞬ピカッと光らせる（例: 30msだけ点灯）
+        gpio_set_level(LED_GPIO, 1);
+        vTaskDelay(pdMS_TO_TICKS(30));
+        gpio_set_level(LED_GPIO, 0);
+
+        // 再び10秒のタイマー設定をしてディープスリープへ戻る
+        esp_sleep_enable_timer_wakeup(SLEEPINTERVAL * 1000ULL); // usec
+        esp_deep_sleep_start();
+    }
+}
+
 void app_main(void)
 {
     int maxcount = 0;
     uint32_t lastdone;
 
-    ESP_LOGI(TAG, "Start ROBOBIKE system");
+    check_sleep_indicator();
+
     esp_log_level_set("*", ESP_LOG_INFO);
+    ESP_LOGI(TAG, "Start ROBOBIKE system");
+
     userdeviceinit();
     IMU_init();
     servo_init();
@@ -41,7 +64,6 @@ void app_main(void)
                 set_str_cmd(0.f, 0.5f);
                 maxcount = 0;
                 set_led_brightness(LEDLOW);
-                savenvs();
             }
             else
             {
@@ -59,7 +81,7 @@ void app_main(void)
             // ESP_LOGI(TAG, "IO2=%d", IO2);
             if ((mot_out == 0.0f) && ((millis() - userLastControlTime) >= SLEEP_DURATION_MS))
             {
-                deepSleep(0);
+                deepSleep(SLEEPINTERVAL);
             }
         }
     }
