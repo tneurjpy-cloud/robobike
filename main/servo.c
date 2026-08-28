@@ -74,24 +74,24 @@ float *pyaw_coeff;
 volatile bool stopServo = false;
 
 const TSave savedefault = {
-    DATAVER,                                    // (int) data format version
-    0,                                          // (uint32_t) operation time in sec
-    false,                                      // isChecked
-    0.030f,                                     // gain_str;
-    0.030f,                                     // gain_str_diff
-    13.0f,                                      // gain_w_roll;
-    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},       // acc_offset
-    {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.0f}, // acc_dir
-    0.040f,                                     // str_diff_alph
-    0,                                          // (int) steering angle neutral R= +deg
-    60,                                         // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
-    20,                                         // (int) stand for start
-    0.0f,                                       // run-speed feedback coefficient
-    0.011f,                                     // yaw‑rate feedback coefficient
-    40,                                         // (int) str_turn deg
-    30,                                         // (int) str_cmd_speed deg/sec
-    false,                                      // (bool) autoCircling
-    0xFFFFFFFF                                  // (uint32_t) CRC
+    .ver = DATAVER,                                        // (int) data format version
+    .op_time_s = 0,                                        // (uint32_t) operation time in sec
+    .isChecked = false,                                    // isChecked
+    .gain_str = 0.030f,                                    // gain_str;
+    .gain_str_diff = 0.030f,                               // gain_str_diff
+    .gain_w_roll = 12.0f,                                  // gain_w_roll;
+    .acc_offset = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},    // acc_offset
+    .acc_dir = {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.0f}, // acc_dir
+    .str_diff_alph = 0.040f,                               // str_diff_alph
+    .str0 = 0,                                             // (int) steering angle neutral R= +deg
+    .mot_spd = 60,                                         // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
+    .ang_std_nut = 20,                                     // (int) stand for start
+    .run_coeff = 0.0f,                                     // run-speed feedback coefficient
+    .yaw_coeff = 0.011f,                                   // yaw‑rate feedback coefficient
+    .str_turn = 40,                                        // (int) str_turn deg
+    .str_cmd_speed = 30,                                   // (int) str_cmd_speed deg/sec
+    .autoCircling = false,                                 // (bool) autoCircling
+    .auto_circ_gain = 0.75f                                // (float) autoCirclingGain
 };
 
 //// R/C servo pulse width making
@@ -366,7 +366,7 @@ static void str_easing()
     switch (runState)
     {
     case rsInner_Correct:
-        str_cmd1 = str_cmd0 * AUTOCORRECTRATE;
+        str_cmd1 = str_cmd0 * saved.auto_circ_gain;
         str_target = str_cmd1;
         break;
     default:

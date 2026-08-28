@@ -26,7 +26,7 @@ void do_str_cmd_calc()
     case rsOuter: // 円周外 通常走行
         if ((IO2 == 0) && (now - chk_start > 1000))
         {
-            if (chgCount < 3)
+            if (chgCount < 4)
             {
                 ++chgCount;
             }
@@ -46,7 +46,7 @@ void do_str_cmd_calc()
     case rsInner_Correct: // 円周内 修正動作実行
         if (IO2 == 1)
         {
-            if (chgCount < 3)
+            if (chgCount < 4)
             {
                 ++chgCount;
             }
@@ -69,7 +69,7 @@ void do_str_cmd_calc()
     case rsInner_Stable: // 円周内 修正動作終了
         if (IO2 == 1 && (now - chk_start > 1000))
         {
-            if (chgCount < 3)
+            if (chgCount < 4)
             {
                 ++chgCount;
             }

@@ -109,6 +109,18 @@
         </div>
     </div>
 
+    <!-- auto circ gain -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color:  teal;">AUTO CIRC GAIN</span>
+            <span id="auto_circ_gain">---</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_autoCirc_Up')">↑</button>
+            <button class="btn-right" onclick="sendCommand('bt_autoCirc_Dn')">↓</button>
+        </div>
+    </div>
+
     <!-- Load default -->
     <div id="default-loading-dialog" style="
         display: none;
@@ -163,15 +175,51 @@
         EXIT
     </button>
 
+
+
+
+
+    
+
     <script>
-        // 1. C言語の TcmdID (enum) と完全に一致させる対応表
         const COMMAND_NAMES = [
-            'stp_all', 'only_data', 'bt_F', 'bt_S', 'bt_L', 'bt_R', 'bt_Str_S', 'bt_BK',
-            'bt_A_Up_0', 'bt_A_Dn_0', 'bt_A_Up', 'bt_A_Dn', 'bt_A_L', 'bt_A_R',
-            'bt_S_Up', 'bt_S_Dn', 'bt_R_Up', 'bt_R_Dn', 'bt_D_St', 'bt_D_Up',
-            'bt_D_Dn', 'bt_Std_nutAuto', 'bt_Std_nutUp', 'bt_Std_nutDn',
-            'bt_str_turnUp', 'bt_str_turnDn', 'bt_strcmd_Up', 'bt_strcmd_Dn',
-            'IR_ON', 'IR_OFF', 'bt_yaw_coeffUp', 'bt_yaw_coeffDn', 'bt_Ld_Default'
+            'stp_all', 
+            'only_data', 
+            'bt_F', 
+            'bt_S', 
+            'bt_L', 
+            'bt_R', 
+            'bt_Str_S', 
+            'bt_BK',
+            'bt_A_Up_0', 
+            'bt_A_Dn_0', 
+            'bt_A_Up', 
+            'bt_A_Dn', 
+            'bt_A_L', 
+            'bt_A_R',
+            'bt_S_Up', 
+            'bt_S_Dn', 
+            'bt_R_Up', 
+            'bt_R_Dn', 
+            'bt_D_St', 
+            'bt_D_Up',
+            'bt_D_Dn', 
+            'bt_Std_nutAuto', 
+            'bt_Std_nutUp', 
+            'bt_Std_nutDn',
+            'bt_str_turnUp', 
+            'bt_str_turnDn', 
+            'bt_strcmd_Up', 
+            'bt_strcmd_Dn',
+            'IR_ON', 
+            'IR_OFF', 
+            'bt_yaw_coeffUp', 
+            'bt_yaw_coeffDn',
+            'bt_sweepON', 
+            'bt_sweepOFF',
+            'bt_autoCirc_Up', 
+            'bt_autoCirc_Dn', 
+            'bt_Ld_Default'
         ];
 
         const CMD_ID = { unknown: 0 };
@@ -180,21 +228,23 @@
         });
 
         const CSV_KEYS = [
-            "HEADER",       // 0: 'b'
-            "PROG_VER",     // 1
-            "DATA_VER",     // 2
-            "STATUS",       // 3
-            "STR0",         // 4
-            "MOT_SPD",      // 5
-            "GAIN_STR",     // 6
-            "GAIN_W_ROLL",  // 7
-            "GAIN_DIFF",    // 8
-            "ANG_STD_NUT",  // 9
-            "STR_TURN",     // 10
-            "YAW_COEFF",    // 11
-            "AUTO_CIRCLING",// 12
-            "STR_CMD_RATE", // 13
-            "STR_CMD_SPD"   // 14
+            "HEADER",        // 0: 'b'
+            "PROG_VER",      // 1
+            "DATA_VER",      // 2
+            "STATUS",        // 3
+            "STR0",          // 4
+            "MOT_SPD",       // 5
+            "GAIN_STR",      // 6
+            "GAIN_W_ROLL",   // 7
+            "GAIN_DIFF",     // 8
+            "ANG_STD_NUT",   // 9
+            "STR_TURN",      // 10
+            "YAW_COEFF",     // 11
+            "AUTO_CIRCLING", // 12
+            "STR_CMD_RATE",  // 13
+            "STR_CMD_SPD",   // 14
+            "AUTO_CIRC_GAIN",// 15
+            "DOSWEEP"        // 16
         ];
 
         const CSV_IDX = Object.fromEntries(CSV_KEYS.map((key, index) => [key, index]));
@@ -223,6 +273,9 @@
 
             if (document.getElementById('str_cmd_speed'))
                 document.getElementById('str_cmd_speed').innerText = Number(data[CSV_IDX.STR_CMD_SPD]).toFixed(0);
+
+            if (document.getElementById('auto_circ_gain'))
+                document.getElementById('auto_circ_gain').innerText = Number(data[CSV_IDX.AUTO_CIRC_GAIN]).toFixed(2);
 
             if (document.getElementById('ir_checkbox'))
                 document.getElementById('ir_checkbox').checked = parseInt(data[CSV_IDX.AUTO_CIRCLING]) === 1;
@@ -299,6 +352,8 @@
             setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_yaw_coeffDn')\"]"), "bt_yaw_coeffDn");
             setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_strcmd_Up')\"]"), "bt_strcmd_Up");
             setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_strcmd_Dn')\"]"), "bt_strcmd_Dn");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_autoCirc_Up')\"]"), "bt_autoCirc_Up");
+            setupHoldButton(document.querySelector("button[onclick=\"sendCommand('bt_autoCirc_Dn')\"]"), "bt_autoCirc_Dn");
         });
     </script>
 </body>

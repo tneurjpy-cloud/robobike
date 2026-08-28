@@ -27,25 +27,26 @@ char *get_edit_data()
 
     /*  for java script
     const CSV_KEYS = [
-        "HEADER",       // 0: 'b'
-        "PROG_VER",     // 1
-        "DATA_VER",     // 2
-        "STATUS",       // 3
-        "STR0",         // 4
-        "MOT_SPD",      // 5
-        "GAIN_STR",     // 6
-        "GAIN_W_ROLL",  // 7
-        "GAIN_DIFF",    // 8
-        "ANG_STD_NUT",  // 9
-        "STR_TURN",     // 10
-        "YAW_COEFF",    // 11
-        "AUTO_CIRCLING",// 12
-        "STR_CMD_RATE", // 13
-        "STR_CMD_SPD",  // 14
-        "DOSWEEP"       // 15
+        "HEADER",        // 0: 'b'
+        "PROG_VER",      // 1
+        "DATA_VER",      // 2
+        "STATUS",        // 3
+        "STR0",          // 4
+        "MOT_SPD",       // 5
+        "GAIN_STR",      // 6
+        "GAIN_W_ROLL",   // 7
+        "GAIN_DIFF",     // 8
+        "ANG_STD_NUT",   // 9
+        "STR_TURN",      // 10
+        "YAW_COEFF",     // 11
+        "AUTO_CIRCLING", // 12
+        "STR_CMD_RATE",  // 13
+        "STR_CMD_SPD",   // 14
+        "AUTO_CIRC_GAIN",// 15
+        "DOSWEEP"        // 16
     ];
     */
-    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d,%d",
+    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d,%.3f,%d",
              'b',
              PROGVER,
              DATAVER,
@@ -61,6 +62,7 @@ char *get_edit_data()
              saved.autoCircling,
              str_cmd_rate,
              saved.str_cmd_speed,
+             saved.auto_circ_gain,
              doSweep);
 
     return rescsv;
@@ -524,6 +526,20 @@ esp_err_t put_command(control_msg_t *msg)
             saved.yaw_coeff -= 0.001f;
         if (saved.yaw_coeff < GYDIR_YAW_MIN)
             saved.yaw_coeff = GYDIR_YAW_MIN;
+        break;
+
+    case bt_autoCirc_Up:
+        set_mot_duty(0.0f, 0.0f);
+        saved.auto_circ_gain += 0.01f;
+        if (saved.auto_circ_gain > 1.0f)
+            saved.auto_circ_gain = 1.0f;
+        break;
+
+    case bt_autoCirc_Dn:
+        set_mot_duty(0.0f, 0.0f);
+        saved.auto_circ_gain -= 0.01f;
+        if (saved.auto_circ_gain < 0.0f)
+            saved.auto_circ_gain = 0.0f;
         break;
 
     case bt_Ld_Default:

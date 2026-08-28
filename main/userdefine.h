@@ -1,13 +1,13 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-Copyright 2026.06.05 M.Tanaami
+Copyright 2026.08.28  M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
-#define PROGVER 1035 // version for program
-#define DATAVER 5    // version for saved data in NVS
+#define PROGVER 1036 // version for program
+#define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -84,28 +84,35 @@ Copyright 2026.06.05 M.Tanaami
 #define ANG2PULSE (1000.0f / 90.0f)  //
 
 #define AUTOCORRECTTIME 150 // msec
-#define AUTOCORRECTRATE 0.6f
 
 typedef struct
 {
-    int ver;              // data ver
-    uint32_t op_time_s;   // operation time in minutes
-    bool isChecked;       //
-    float gain_str;       // delta = 0.01
-    float gain_str_diff;  //
-    float gain_w_roll;    // delta = 1.0
-    Tvector6d acc_offset; //
-    Tvector6d acc_dir;    //
-    float str_diff_alph;  // alpha for low-pass filter of str_dev_diff
-    int str0;             //
-    int mot_spd;          //
-    int ang_std_nut;      //
-    float run_coeff;      // run-speed feedback coefficient
-    float yaw_coeff;      // yaw‑rate feedback coefficient
-    int str_turn;         //
-    int str_cmd_speed;    // steering command changeing speed deg/sec
-    bool autoCircling;    // auto circling mode
-    uint32_t CRC;         //
+    union
+    {
+        struct
+        {
+            int ver;              // data ver
+            uint32_t op_time_s;   // operation time in minutes
+            bool isChecked;       //
+            float gain_str;       // delta = 0.01
+            float gain_str_diff;  //
+            float gain_w_roll;    // delta = 1.0
+            Tvector6d acc_offset; //
+            Tvector6d acc_dir;    //
+            float str_diff_alph;  // alpha for low-pass filter of str_dev_diff
+            int str0;             //
+            int mot_spd;          //
+            int ang_std_nut;      //
+            float run_coeff;      // run-speed feedback coefficient
+            float yaw_coeff;      // yaw‑rate feedback coefficient
+            int str_turn;         //
+            int str_cmd_speed;    // steering command changeing speed deg/sec
+            bool autoCircling;    // auto circling mode
+            float auto_circ_gain; // auto circling Gain(0.0-1.0)
+        };
+        uint8_t payloadArea[256 - sizeof(uint32_t)]; //
+    };
+    uint32_t CRC; //
 } TSave;
 
 typedef enum         // 自動旋回修正用状態定義
@@ -115,7 +122,7 @@ typedef enum         // 自動旋回修正用状態定義
     rsInner_Stable   // 内側走行、定常旋回
 } TRunState;
 
-typedef enum    // servo sync timer callback step
+typedef enum // servo sync timer callback step
 {
     cb0 = 0,
     cb1,
@@ -123,7 +130,7 @@ typedef enum    // servo sync timer callback step
     cb3,
 } TSyncCBStep;
 
-#define STRMAX 70
+#define STRMAX 80
 #define STR_STOP 40
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
@@ -137,7 +144,7 @@ typedef enum    // servo sync timer callback step
 
 #define LEDHIGH 255
 #define LEDLOW 32
-#define SLEEPINTERVAL (10 * 1000UL) // 10 sec to sleep
+#define SLEEPINTERVAL (10 * 1000UL)          // 10 sec to sleep
 #define SLEEP_DURATION_MS (15 * 60 * 1000UL) // 15min to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
 #define waitTaskms(xms) vTaskDelay(pdMS_TO_TICKS(xms))
@@ -209,6 +216,8 @@ extern const httpd_uri_t ota;
     V(bt_yaw_coeffDn)   \
     V(bt_sweepON)       \
     V(bt_sweepOFF)      \
+    V(bt_autoCirc_Up)   \
+    V(bt_autoCirc_Dn)   \
     V(bt_Ld_Default)
 
 typedef enum
