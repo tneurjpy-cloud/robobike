@@ -6,7 +6,7 @@ Copyright 2026.08.28  M.Tanaami
 
 #pragma once
 
-#define PROGVER 1036 // version for program
+#define PROGVER 1037 // version for program
 #define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>

@@ -1,5 +1,6 @@
 #include "userdefine.h"
 
+#define DO_LOG_URI 0
 static const char *TAG = "web_handler";
 
 // static file server
@@ -11,10 +12,19 @@ typedef struct
     bool disable_auto;
 } file_server_data_t;
 
+static void log_uri(httpd_req_t *req)
+{
+#if DO_LOG_URI
+    ESP_LOGI(TAG, "URI: %s", req->uri);
+#endif
+}
+
 /////////////////////////////////////////////////////////////////////////////
 /// @brief  "http://192.168.4.1/FILENAME"
 static esp_err_t common_file_get_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     file_server_data_t *data = (file_server_data_t *)req->user_ctx;
     if (strcmp(req->uri, "/setup") == 0)
         saved.isChecked = true;
@@ -59,6 +69,7 @@ static const httpd_uri_t monitor = {
     .user_ctx = (void *)&d_monitor};
 
 // connecttest.txt for dummy ////////////////////////////////////////////////
+esp_err_t root_get_handler(httpd_req_t *req);
 extern const char connecttest_start[] asm("_binary_connecttest_txt_start");
 extern const char connecttest_end[] asm("_binary_connecttest_txt_end");
 static const file_server_data_t d_connecttest = {
@@ -73,7 +84,7 @@ static const httpd_uri_t connecttest = {
 static const httpd_uri_t hotspot_detect = {
     .uri = "/hotspot-detect.html",
     .method = HTTP_GET,
-    .handler = common_file_get_handler,
+    .handler = root_get_handler,
     .user_ctx = (void *)&d_connecttest};
 
 static const httpd_uri_t success = {
@@ -100,6 +111,8 @@ static const httpd_uri_t favicon = {
 /// @brief  "http://192.168.4.1/command?button=13"
 static esp_err_t command_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     char query_buf[64];
     char val_str[32];
 
@@ -132,6 +145,8 @@ const httpd_uri_t command = {
 /// @brief  "http://192.168.4.1/get_acc"
 static esp_err_t get_acc_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     char *p = get_control_data();
     httpd_resp_set_type(req, "text/csv; charset=UTF-8");
     httpd_resp_send(req, p, HTTPD_RESP_USE_STRLEN);
@@ -148,6 +163,8 @@ const httpd_uri_t get_acc = {
 /// @brief  "http://192.168.4.1/clear_buffer"
 static esp_err_t clear_buffer_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     char *p = clear_buffer_data();
     httpd_resp_set_type(req, "text/plane; charset=UTF-8");
     httpd_resp_send(req, p, HTTPD_RESP_USE_STRLEN);
@@ -165,6 +182,8 @@ const httpd_uri_t clear_buffer = {
 // for android ///////////////////////////////////////
 static esp_err_t generate_204_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     httpd_resp_set_status(req, "302 Found");
     httpd_resp_set_hdr(req, "Location", "/"); // ← 操作UI
     return httpd_resp_send(req, NULL, 0);
@@ -178,6 +197,8 @@ const httpd_uri_t generate_204 = {
 // for Windows ///////////////////////////////////////
 static esp_err_t ncsi_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     httpd_resp_set_status(req, "302 Found");
     httpd_resp_set_hdr(req, "Location", "/");
     return httpd_resp_send(req, NULL, 0);
@@ -198,6 +219,8 @@ extern const char root_end[] asm("_binary_root_html_end");
 extern const int32_t root_len asm("root_html_length");
 esp_err_t root_get_handler(httpd_req_t *req)
 {
+    log_uri(req);
+
     int fd = httpd_req_to_sockfd(req);
     if (fd < 0)
     {
@@ -306,11 +329,14 @@ const size_t uri_handlers_count = sizeof(uri_handlers) / sizeof(uri_handlers[0])
 // HTTP Error (404) Handler - Redirects all requests to the root page
 esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err)
 {
-    httpd_resp_set_status(req, "302 Temporary Redirect");
-    httpd_resp_set_hdr(req, "Location", "/");
-    // iOS requires content in the response to detect a captive portal, simply redirecting is not sufficient.
-    httpd_resp_send(req, "Redirect to the captive portal", HTTPD_RESP_USE_STRLEN);
+    ESP_LOGI(TAG, "404 error");
+    return root_get_handler(req);
 
-    ESP_LOGI(TAG, "Redirecting to root");
-    return ESP_OK;
+    // httpd_resp_set_status(req, "302 Temporary Redirect");
+    // httpd_resp_set_hdr(req, "Location", "/");
+    // // iOS requires content in the response to detect a captive portal, simply redirecting is not sufficient.
+    // httpd_resp_send(req, "Redirect to the captive portal", HTTPD_RESP_USE_STRLEN);
+
+    // ESP_LOGI(TAG, "Redirecting to root");
+    // return ESP_OK;
 }
