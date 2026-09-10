@@ -171,44 +171,12 @@
             color: #7f8c8d;
             line-height: 1.5;
         }
-
-        .mobile-warning {
-            display: none;
-            background: #fff5f5;
-            color: #c0392b;
-            padding: 20px;
-            border: 2px solid #e74c3c;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-weight: bold;
-            line-height: 1.6;
-        }
-
-        @media (max-width: 600px) {
-            .mobile-warning {
-                display: block;
-            }
-
-            .upload-area,
-            .btn-update,
-            .pc-notice,
-            .version-info {
-                display: none !important;
-            }
-        }
     </style>
 </head>
 
 <body>
     <div class="card">
         <h2>ROBOBIKE<br>Program Update</h2>
-
-        <div class="mobile-warning">
-            ⚠️ Please operate this page from a PC.
-        </div>
-
-        <span class="pc-notice">⚠️ Please perform the update from a PC with a stable power supply.</span>
-
         <label class="upload-area" id="drop-zone">
             <span class="upload-icon">📁</span>
             <span style="font-size: 14px;">Select or drag the update file here</span>

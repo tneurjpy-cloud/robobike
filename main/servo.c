@@ -141,9 +141,17 @@ static ledc_channel_config_t svch_ex1 = {
     .hpoint = 0};
 
 // gpTimer for synchronization
+typedef enum // servo sync timer callback step
+{
+    cb0 = 0,
+    cb1,
+    cb2,
+    cb3,
+} TSyncCBStep;
+
+static volatile TSyncCBStep sync_step = cb0;
 static gptimer_handle_t sync_timer;
 static TaskHandle_t xControlTaskHandle;
-volatile TSyncCBStep sync_step = cb0;
 
 // タスクが計算した std（ex1）のs2用可変Dutyを一時保持するバッファ変数
 static volatile uint32_t duty_ex1_s2 = 0;
@@ -477,8 +485,10 @@ static void ControlTask(void *pvParameters)
     }
 }
 
-// gptimer 割り込みハンドラ 1000us等間隔の数珠繋ぎステートマシン
-static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
+// gptimer interrupt handler 1000us interval state machine.
+// If stopServo is true, the servo output will be lowered and the timer will continue to run.
+static bool IRAM_ATTR sync_timer_isr_cb(
+    gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
 {
     gptimer_alarm_config_t next_alarm = {0};
     next_alarm.flags.auto_reload_on_alarm = false;
@@ -489,9 +499,11 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
     {
     case cb0:
         vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_100);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
-
+        if (!stopServo)
+        {
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_100);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+        }
         next_alarm.alarm_count = FIRSTWT + STG_INTRVL;
         gptimer_set_alarm_action(timer, &next_alarm);
         res = true;
@@ -503,9 +515,11 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, duty_ex1_s2);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
-
+        if (!stopServo)
+        {
+            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, duty_ex1_s2);
+            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+        }
         next_alarm.alarm_count = FIRSTWT + STG_INTRVL * 2;
         gptimer_set_alarm_action(timer, &next_alarm);
         sync_step++;
@@ -527,10 +541,10 @@ static bool IRAM_ATTR sync_timer_isr_cb(gptimer_handle_t timer, const gptimer_al
             ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
             ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_100);
             ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
-            sync_step = cb0;
         }
+        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
+        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+        sync_step = cb0;
         gptimer_stop(timer); // 自走終了 外部割込み待ちへ
         break;
     }

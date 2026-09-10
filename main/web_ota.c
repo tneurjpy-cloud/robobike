@@ -40,6 +40,11 @@ static esp_err_t ota_post_handler(httpd_req_t *req)
 
     ESP_LOGI(TAG, "Starting OTA update...");
 
+    // 0. Stop servo PWM output to avoid interference during OTA update
+    auto_disable();
+    set_led_brightness(LEDHIGH);
+    stopServo = true;
+
     // 1. Get the next OTA partition to write
     update_partition = esp_ota_get_next_update_partition(NULL);
     if (update_partition == NULL)

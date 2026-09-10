@@ -293,7 +293,7 @@ esp_err_t root_get_handler(httpd_req_t *req)
         char master_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &master_ip, master_str, sizeof(master_str));
 
-        ESP_LOGI(TAG, "★★★ MASTER REGISTERED: %s ★★★", master_str);
+        ESP_LOGI(TAG, "MASTER REGISTERED: %s", master_str);
     }
 
     httpd_resp_set_type(req, "text/html; charset=UTF-8");

@@ -1,12 +1,12 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-Copyright 2026.08.28  M.Tanaami
+Copyright 2026.09.10  M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
-#define PROGVER 1037 // version for program
+#define PROGVER 1040 // version for program
 #define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>
@@ -122,21 +122,13 @@ typedef enum         // 自動旋回修正用状態定義
     rsInner_Stable   // 内側走行、定常旋回
 } TRunState;
 
-typedef enum // servo sync timer callback step
-{
-    cb0 = 0,
-    cb1,
-    cb2,
-    cb3,
-} TSyncCBStep;
-
 #define STRMAX 80
 #define STR_STOP 40
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
 #define EX1MAX 60
 #define EX1MIN (-10)
-#define STD_RUN 80
+#define STD_RUN 100
 #define STD_STD_NUT 16 // diff STD. - NUT.
 
 #define RING_BUF_SIZE (SAMPLE_RATE_HZ * 5) // for data monitor
@@ -166,7 +158,6 @@ extern bool auto_en;
 
 extern volatile uint32_t userLastControlTime;
 
-extern volatile TSyncCBStep sync_step;
 extern volatile bool stopServo;
 
 // webserver handlers
