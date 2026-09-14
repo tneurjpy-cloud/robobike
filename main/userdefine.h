@@ -6,7 +6,7 @@ Copyright 2026.09.10  M.Tanaami
 
 #pragma once
 
-#define PROGVER 1040 // version for program
+#define PROGVER 1041 // version for program
 #define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>
@@ -72,8 +72,8 @@ Copyright 2026.09.10  M.Tanaami
 
 ///////////////// R/C servo using /////////////////
 #define SERVO_NEUTRAL_DUTY (1500.0f) // 0deg 1500us
-#define STR_ADJ_MIN (-20)            //
-#define STR_ADJ_MAX (20)             //
+#define STR_ADJ_MIN (-90)            //
+#define STR_ADJ_MAX (90)             //
 #define STR_SLIDER_MAX 100.0f        // +-100
 #define STR_GA_MAX 0.200f            //
 #define STR_GA_MIN 0.001f            //

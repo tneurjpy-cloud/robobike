@@ -55,7 +55,9 @@ void app_main(void)
 
         if (auto_en && (str_out >= (STRMAX - 2) || str_out <= -(STRMAX - 2)))
         { // 転倒判定
-            if (maxcount >= 2)
+            extern uint32_t duty_str_prev;
+            ESP_LOGI(TAG, "Str duty_s1=%lu", duty_str_prev);
+            if (maxcount >= 5)
             {
                 auto_disable();
                 set_mot_duty(0.f, 0.f);

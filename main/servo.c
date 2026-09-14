@@ -157,7 +157,7 @@ static TaskHandle_t xControlTaskHandle;
 static volatile uint32_t duty_ex1_s2 = 0;
 
 // ★遅刻時の2000usパルス化を防ぐための、前回計算値保持用変数
-static uint32_t duty_str_prev = 2048; // 初期値ニュートラル(1500us相当)
+uint32_t duty_str_prev = 2048; // 初期値ニュートラル(1500us相当)
 static uint32_t duty_mot_prev = 2048; // 初期値ニュートラル(1500us相当)
 
 #include <math.h>
@@ -461,6 +461,7 @@ void gyroServiceLoop()
     }
 }
 
+// Wakeup on sync_timer_isr/cb0, do str. mot. servo output 
 static void ControlTask(void *pvParameters)
 {
     for (;;)

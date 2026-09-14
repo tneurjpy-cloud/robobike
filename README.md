@@ -10,7 +10,10 @@ ESP-IDF components and tools paths depend on installation location
 * Change Log  
 ```text
 Date        CODE    DATA    Description
-2026.09.10  1038       6    Dbg: Accept OTA by smartphone, stop PWM uploading
+------------------------------------------------------------------------------------------------
+2026.09.13  1041       6    Dbg: Fix mobile file selection issue on OTA
+2026.09.11  1040       6    Dbg: Stop servo PWM during OTA
+2026.09.10  1038       6    Dbg: Accept OTA by smartphone
 2026.09.02  1037       6    Chg: Captive portal handler(for iPhone)
 2026.08.28  1036       6    Chg: Sleep time, minor changes for auto circling mode
 2026.07.05  1033       4    Add: Data monitor and its related files.
