@@ -1,12 +1,12 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-Copyright 2026.09.10  M.Tanaami
+Copyright 2026.09.27  ROBOBIKEJP M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
-#define PROGVER 1041 // version for program
+#define PROGVER 1042 // version for program
 #define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>
@@ -25,6 +25,7 @@ Copyright 2026.09.10  M.Tanaami
 #include <lwip/sockets.h>
 
 #include <esp_attr.h>
+#include <esp_check.h>
 #include <esp_err.h>
 #include <esp_event.h>
 #include <esp_http_server.h>
@@ -136,6 +137,7 @@ typedef enum         // 自動旋回修正用状態定義
 
 #define LEDHIGH 255
 #define LEDLOW 32
+#define LEDOFF 0
 #define SLEEPINTERVAL (10 * 1000UL)          // 10 sec to sleep
 #define SLEEP_DURATION_MS (15 * 60 * 1000UL) // 15min to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))

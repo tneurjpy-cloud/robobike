@@ -12,7 +12,7 @@ void check_sleep_indicator(void)
     esp_sleep_source_t cause = esp_sleep_get_wakeup_causes();
 
     if (cause != ESP_SLEEP_WAKEUP_ALL)
-    {
+    { // 450ms to do reset to shutdown
         gpio_reset_pin(LED_GPIO);
         gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
 
@@ -27,6 +27,26 @@ void check_sleep_indicator(void)
     }
 }
 
+void deviceCheck()
+{
+    // str
+    set_str_cmd(15.0f, 0.0f);
+    waitms(250);
+    set_str_cmd(0.0f, 0.0f);
+    waitms(250);
+
+    // mot
+    set_mot_duty(10.0f, 0.0f);
+    waitms(150);
+    set_mot_duty(0.0f, 0.0f);
+    waitms(250);
+
+    // ex1
+    set_ex1_angle(saved.ang_std_nut + STD_STD_NUT + 10.0f, 0.0f);
+    waitms(250);
+    set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.05f);
+}
+
 void app_main(void)
 {
     int maxcount = 0;
@@ -38,9 +58,22 @@ void app_main(void)
     ESP_LOGI(TAG, "Start ROBOBIKE system");
 
     userdeviceinit();
-    IMU_init();
+    if (IMU_init() != ESP_OK)
+    {
+        ESP_LOGE(TAG, "Failed to initialize IMU");
+        while (true)
+        {
+            set_led_brightness(LEDHIGH);
+            waitms(125);
+            set_led_brightness(LEDOFF);
+            waitms(125);
+        }
+    }
+
     servo_init();
     webserver_start();
+
+    deviceCheck();
 
     set_led_brightness(LEDLOW);
     // set_str_cmd(0.0f, 100.0f);
@@ -79,8 +112,6 @@ void app_main(void)
 
         if (isNms(&lastdone, 1000))
         {
-            // extern bool IO2;
-            // ESP_LOGI(TAG, "IO2=%d", IO2);
             if ((mot_out == 0.0f) && ((millis() - userLastControlTime) >= SLEEP_DURATION_MS))
             {
                 deepSleep(SLEEPINTERVAL);

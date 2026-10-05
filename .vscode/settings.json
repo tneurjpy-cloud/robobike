@@ -16,5 +16,6 @@
   ],
   "cmake.cmakePath": "C:\\Espressif\\tools\\cmake\\4.0.3\\bin\\cmake.exe",
   "cmake.configureOnOpen": false,
-  "cmake.configureOnEdit": false
+  "cmake.configureOnEdit": false,
+  "idf.port": "COM14"
 }

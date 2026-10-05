@@ -7,37 +7,6 @@ Copyright 2026.06.05    Masayuki Tanaami      Mobile-Bot Lab. Japan
 
 ESP-IDF components and tools paths depend on installation location  
 
-* Change Log  
-```text
-Date        CODE    DATA    Description
-------------------------------------------------------------------------------------------------
-2026.09.13  1041       6    Dbg: Fix mobile file selection issue on OTA
-2026.09.11  1040       6    Dbg: Stop servo PWM during OTA
-2026.09.10  1038       6    Dbg: Accept OTA by smartphone
-2026.09.02  1037       6    Chg: Captive portal handler(for iPhone)
-2026.08.28  1036       6    Chg: Sleep time, minor changes for auto circling mode
-2026.07.05  1033       4    Add: Data monitor and its related files.
-2026.06.05  1032       4    Dbg: LED control configTICK_RATE_HZ:100
-2026.05.26  1031       4    Chg: Servo PWM Rising Times. Lo-pass filter T
-2026.05.19  1030    1022    Chg: Axis polarity inversion / No use GPIO Int. for Task
-                            Dbg: Monitor.html  
-2026.05.06  1029    1022    Chg: 3ms 1-shot soft timer -> 4ms espTimer / STR cmd Polarity +: left
-                            Add: Ota, Data monitor.
-                            Chg: esp-idf v5.4.1-->> v6.0.1
-2026.04.07  1028    1022    Add: WiFi AP Ch. randomize
-2026.03.31  1027    1021    Add: BACK cmd, SV EN Cont. heapless buffer
-2026.03.20  1025    1021    Mov: GPIO definitions from servo.c to userdefine.h
-2026.03.01  1024    1021    Add: IMU data API, 
-                            Dbg: Calibration
-2026.02.09  1023    1021    Add: Auto circling On/Off, restore SLEEP function
-2026.01.20  1022    1021    Add: Speed buttons to control UI, add only_data
-2026.01.17  1021    1021    Add: Auto circling
-2026.01.11  1020    1020    The 1st release
-2025.12.10  1017    1015    Ex1 step: converted to float (smooth side stand movement)
-2025.11.29  1016    1015    Add: Steering slide bar
-2025.11.11  1014    1014    Suppress UI scaling, add adjustment items, update stop sequence
-2025.10.28  1011    1011    Update: Adjustment screen
-```
 * Control Logic
 The ROBOBIKE utilizes a dual-loop control system: an outer steering PD loop and an inner roll rate feedback loop to achieve self-balancing via counter-steering.
 
@@ -108,3 +77,36 @@ Please install the ESP-IDF extension in VS-Code before building this project.
     Power down the target and perform a complete system reboot.
     OpenOCD Server, select "Eclipse CDT..."
 -----------------------------------------------------------  
+
+* Change Log  
+```text
+Date        CODE    DATA    Description
+------------------------------------------------------------------------------------------------
+2026.09.27  1042       6    Add: Test mode on every reset
+2026.09.13  1041       6    Dbg: Fix mobile file selection issue on OTA
+2026.09.11  1040       6    Dbg: Stop servo PWM during OTA
+2026.09.10  1038       6    Dbg: Accept OTA by smartphone
+2026.09.02  1037       6    Chg: Captive portal handler(for iPhone)
+2026.08.28  1036       6    Chg: Sleep time, minor changes for auto circling mode
+2026.07.05  1033       4    Add: Data monitor and its related files.
+2026.06.05  1032       4    Dbg: LED control configTICK_RATE_HZ:100
+2026.05.26  1031       4    Chg: Servo PWM Rising Times. Lo-pass filter T
+2026.05.19  1030    1022    Chg: Axis polarity inversion / No use GPIO Int. for Task
+                            Dbg: Monitor.html  
+2026.05.06  1029    1022    Chg: 3ms 1-shot soft timer -> 4ms espTimer / STR cmd Polarity +: left
+                            Add: Ota, Data monitor.
+                            Chg: esp-idf v5.4.1-->> v6.0.1
+2026.04.07  1028    1022    Add: WiFi AP Ch. randomize
+2026.03.31  1027    1021    Add: BACK cmd, SV EN Cont. heapless buffer
+2026.03.20  1025    1021    Mov: GPIO definitions from servo.c to userdefine.h
+2026.03.01  1024    1021    Add: IMU data API, 
+                            Dbg: Calibration
+2026.02.09  1023    1021    Add: Auto circling On/Off, restore SLEEP function
+2026.01.20  1022    1021    Add: Speed buttons to control UI, add only_data
+2026.01.17  1021    1021    Add: Auto circling
+2026.01.11  1020    1020    The 1st release
+2025.12.10  1017    1015    Ex1 step: converted to float (smooth side stand movement)
+2025.11.29  1016    1015    Add: Steering slide bar
+2025.11.11  1014    1014    Suppress UI scaling, add adjustment items, update stop sequence
+2025.10.28  1011    1011    Update: Adjustment screen
+```

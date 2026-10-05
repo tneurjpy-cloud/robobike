@@ -12,7 +12,7 @@
 
 //////////////////////////////////////////////////////////////
 // device specific functions
-extern void icm426xx_init();
+extern esp_err_t icm426xx_init();
 extern void icm426xx_sleep();
 extern void icm426xx_start_read();
 extern void icm426xx_get_data(Tvector6d *pac);

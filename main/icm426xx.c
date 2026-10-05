@@ -5,21 +5,23 @@
     ICM-42670   https://www.lcsc.com/datasheet/C3288646.pdf
 */
 #include "userdefine.h"
+
 static const char TAG[] = "icm426xx";
 
-#define IMU_ADDR 0x68          // AD0 = GND
-#define PWR_MGMT0 0x1F         // Power management settings
-#define ACCEL_DATA_X1 0x0B     // Accelerometer X-axis high byte
-#define GYRO_CONFIG0 0x20      // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
-#define ACCEL_CONFIG0 0x21     //
-#define ACCEL_CONFIG1 0x22     //
-#define GYRO_CONFIG1 0x23      // [2,0] GYRO_UI_FILT_BW
-#define INTF_CONFIG0 0x35      // for endian change
+#define IMU_ADDR 0x68        // AD0 = GND
+#define ICM42607_WHOAMI 0x60 //
+#define PWR_MGMT0 0x1F       // Power management settings
+#define ACCEL_DATA_X1 0x0B   // Accelerometer X-axis high byte
+#define GYRO_CONFIG0 0x20    // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
+#define ACCEL_CONFIG0 0x21   //
+#define ACCEL_CONFIG1 0x22   //
+#define GYRO_CONFIG1 0x23    // [2,0] GYRO_UI_FILT_BW
+#define INTF_CONFIG0 0x35    // for endian change
 
-#define WHO_AM_I 0x75           // Device ID register
-#define ACC_LOPASS_NON 0x00     // ODR=1.6kHz=800Hz
-#define ACC_LOPASS_40HZ 0x07    //
-#define I2C_MASTER_TIMEOUT 100  // msec
+#define WHO_AM_I 0x75          // Device ID register
+#define ACC_LOPASS_NON 0x00    // ODR=1.6kHz=800Hz
+#define ACC_LOPASS_40HZ 0x07   //
+#define I2C_MASTER_TIMEOUT 100 // msec
 
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500/dps
 #define GRAVITY 9.80665f                    //
@@ -47,32 +49,34 @@ static esp_err_t i2c_read(uint8_t reg, uint8_t *data, size_t len)
 
 // Accel+-  0:16g 1:8g 2:4g 3:2g
 // Gyro+-   0:250dps 1:500dps 2:1000dps 3:2000dps
-static void icm426xx_get_fs()
+static esp_err_t icm426xx_get_fs(void)
 {
     uint8_t data;
+    ESP_RETURN_ON_ERROR(i2c_read(ACCEL_CONFIG0, &data, 1), TAG, "Read ACCEL_CONFIG0 failed");
+    ESP_LOGI(TAG, "Accel FS=%d", (data >> 5) & 0x07);
 
-    i2c_read(ACCEL_CONFIG0, &data, 1);
-    data = (data >> 5) & 0x07;
-    ESP_LOGI(TAG, "Accel FS=%d", data);
-    i2c_read(GYRO_CONFIG0, &data, 1);
-    data = (data >> 5) & 0x07;
-    ESP_LOGI(TAG, "Gyro FS=%d", data);
+    ESP_RETURN_ON_ERROR(i2c_read(GYRO_CONFIG0, &data, 1), TAG, "Read GYRO_CONFIG0 failed");
+    ESP_LOGI(TAG, "Gyro FS=%d", (data >> 5) & 0x07);
+
+    return ESP_OK;
 }
 
-static void read_who_am_i()
+static esp_err_t read_who_am_i(void)
 {
     uint8_t who_am_i = 0;
-    if (i2c_read(WHO_AM_I, &who_am_i, 1) == ESP_OK)
+    ESP_RETURN_ON_ERROR(i2c_read(WHO_AM_I, &who_am_i, 1), TAG, "Failed to read WHO_AM_I reg");
+
+    if (who_am_i != ICM42607_WHOAMI)
     {
-        ESP_LOGI(TAG, "WHO_AM_I: 0x%02x", who_am_i);
+        ESP_LOGE(TAG, "WHO_AM_I check failed: expected 0x%02x, got 0x%02x", ICM42607_WHOAMI, who_am_i);
+        return ESP_ERR_INVALID_RESPONSE;
     }
-    else
-    {
-        ESP_LOGE(TAG, "Failed to read WHO_AM_I reg");
-    }
+
+    ESP_LOGI(TAG, "WHO_AM_I: 0x%02x", who_am_i);
+    return ESP_OK;
 }
 
-void icm426xx_sleep()
+void icm426xx_sleep(void)
 {
     uint8_t sleep_mode = 0x00; // GYRO_MODE=00 (off), ACCEL_MODE=00 (off), IDLE=0, ACCEL_LP_CLK_SEL=0
     ESP_LOGI(TAG, "entering sleep (PWR_MGMT0=0x%02X)", sleep_mode);
@@ -84,7 +88,7 @@ static uint8_t raw[12] = {0};
 static volatile bool i2c_done = true;
 
 //// call this to start reading
-void icm426xx_start_read()
+void icm426xx_start_read(void)
 {
     static uint8_t addr[1] = {ACCEL_DATA_X1};
 
@@ -120,10 +124,11 @@ void icm426xx_get_data(Tvector6d *pac)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
-void icm426xx_init()
+esp_err_t icm426xx_init(void)
 {
     uint8_t cfg;
 
+    // --- Phase 1: 初期同期書き込み用のI2Cバス生成 ---
     i2c_master_bus_config_t bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = I2C_NUM_0,
@@ -132,51 +137,55 @@ void icm426xx_init()
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
     };
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &bus_handle));
+    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_config, &bus_handle), TAG, "Phase1 bus init failed");
 
     i2c_device_config_t dev_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = IMU_ADDR,
         .scl_speed_hz = I2C_CLOCK_SPD,
     };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+    ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle), TAG, "Phase1 add dev failed");
 
+    // --- IMUレジスタ設定 ---
     cfg = 0x45; // GYRO_UI_FS_SEL=500dps(0100), GYRO_ODR=1.6KHz(0101)
-    i2c_write(GYRO_CONFIG0, &cfg, 1);
+    ESP_RETURN_ON_ERROR(i2c_write(GYRO_CONFIG0, &cfg, 1), TAG, "GYRO_CONFIG0 write failed");
 
     cfg = 0x65; // 0b01100101
-    i2c_write(ACCEL_CONFIG0, &cfg, 1);
+    ESP_RETURN_ON_ERROR(i2c_write(ACCEL_CONFIG0, &cfg, 1), TAG, "ACCEL_CONFIG0 write failed");
 
     cfg = ACC_LOPASS_NON; // bypass Lo-pass
-    i2c_write(GYRO_CONFIG1, &cfg, 1);
+    ESP_RETURN_ON_ERROR(i2c_write(GYRO_CONFIG1, &cfg, 1), TAG, "GYRO_CONFIG1 write failed");
 
     cfg = ACC_LOPASS_40HZ; // 40Hz Lo-pass
-    i2c_write(ACCEL_CONFIG1, &cfg, 1);
+    ESP_RETURN_ON_ERROR(i2c_write(ACCEL_CONFIG1, &cfg, 1), TAG, "ACCEL_CONFIG1 write failed");
 
     cfg = 0x0F; // --- Power ON (Accel + Gyro ON) ---
-    i2c_write(PWR_MGMT0, &cfg, 1);
+    ESP_RETURN_ON_ERROR(i2c_write(PWR_MGMT0, &cfg, 1), TAG, "PWR_MGMT0 write failed");
 
     cfg = 0x20; // Change to Little Endian format
-    i2c_write(INTF_CONFIG0, &cfg, 1);
+    ESP_RETURN_ON_ERROR(i2c_write(INTF_CONFIG0, &cfg, 1), TAG, "INTF_CONFIG0 write failed");
 
-    read_who_am_i();
-    icm426xx_get_fs();
+    // レジスタ確認・WHO_AM_Iチェック
+    ESP_RETURN_ON_ERROR(read_who_am_i(), TAG, "WHO_AM_I check failed");
+    ESP_RETURN_ON_ERROR(icm426xx_get_fs(), TAG, "get_fs failed");
 
-    ESP_ERROR_CHECK(i2c_master_bus_rm_device(dev_handle));
-    ESP_ERROR_CHECK(i2c_del_master_bus(bus_handle));
+    // --- Phase 1 のバスを解放 ---
+    ESP_RETURN_ON_ERROR(i2c_master_bus_rm_device(dev_handle), TAG, "rm_device failed");
+    ESP_RETURN_ON_ERROR(i2c_del_master_bus(bus_handle), TAG, "del_master_bus failed");
 
-    waitTaskms(100); // 2026.03.29 ADD
+    waitTaskms(100);
 
-    // IO10 IMU_INT0
-    gpio_config_t io_conf;
+    // --- GPIO（IMU_INT0）の設定 ---
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << IO_10),
+        .mode = GPIO_MODE_INPUT,
+        .intr_type = GPIO_INTR_POSEDGE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "GPIO config failed");
 
-    io_conf.pin_bit_mask = (1ULL << IO_10);
-    io_conf.mode = GPIO_MODE_INPUT;
-    io_conf.intr_type = GPIO_INTR_POSEDGE;
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
-
+    // --- Phase 2: 非同期配信用（trans_queue_depth 設定済み）のI2Cバス再生成 ---
     i2c_master_bus_config_t bus_configas = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = I2C_NUM_0,
@@ -186,13 +195,14 @@ void icm426xx_init()
         .flags.enable_internal_pullup = true,
         .trans_queue_depth = 10,
     };
-    ESP_ERROR_CHECK(i2c_new_master_bus(&bus_configas, &bus_handle));
-
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle));
+    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_configas, &bus_handle), TAG, "Phase2 bus init failed");
+    ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle), TAG, "Phase2 add dev failed");
 
     // コールバックの登録
     i2c_master_event_callbacks_t cbs = {
         .on_trans_done = i2c_trans_done_callback,
     };
-    ESP_ERROR_CHECK(i2c_master_register_event_callbacks(dev_handle, &cbs, NULL));
+    ESP_RETURN_ON_ERROR(i2c_master_register_event_callbacks(dev_handle, &cbs, NULL), TAG, "Register callbacks failed");
+
+    return ESP_OK;
 }

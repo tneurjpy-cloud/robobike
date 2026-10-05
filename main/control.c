@@ -6,13 +6,13 @@
 static uint32_t chk_start;
 int chgCount = 0;
 volatile TRunState runState = rsOuter;
-bool IO2;
 
 // servo control task
 // chk_start : start time of the state now
 void do_str_cmd_calc()
 {
     uint32_t now = millis();
+    bool inCirc = !gpio_get_level(IO_2);
 
     if (!saved.autoCircling)
     {
@@ -20,11 +20,10 @@ void do_str_cmd_calc()
         return;
     }
 
-    IO2 = gpio_get_level(IO_2);
     switch (runState)
     {
     case rsOuter: // 円周外 通常走行
-        if ((IO2 == 0) && (now - chk_start > 1000))
+        if (inCirc && (now - chk_start > 1000))
         {
             if (chgCount < 4)
             {
@@ -44,8 +43,8 @@ void do_str_cmd_calc()
         break;
 
     case rsInner_Correct: // 円周内 修正動作実行
-        if (IO2 == 1)
-        {
+        if (!inCirc)
+        { // 円周外
             if (chgCount < 4)
             {
                 ++chgCount;
@@ -67,7 +66,7 @@ void do_str_cmd_calc()
         break;
 
     case rsInner_Stable: // 円周内 修正動作終了
-        if (IO2 == 1 && (now - chk_start > 1000))
+        if (!inCirc && (now - chk_start > 1000))
         {
             if (chgCount < 4)
             {
