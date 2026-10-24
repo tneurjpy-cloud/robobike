@@ -212,7 +212,7 @@ static void cmdProcTask(void *pvParameters)
         case bt_F:
             if (mot_out != 0.0f) // 走行中
             {
-                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / (float)SV_FRQ); // ゆっくりと戻す
+                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / (float)sv_freq); // ゆっくりと戻す
             }
             else // start on stop
             {    // down the stand slowly, motor on, up the stand
@@ -239,7 +239,7 @@ static void cmdProcTask(void *pvParameters)
             {
                 if (str_target != 0.f)
                 {
-                    set_str_cmd(0.0f, 60.0f / (float)SV_FRQ);
+                    set_str_cmd(0.0f, 60.0f / (float)sv_freq);
                     wait_str_angle();
                     waitTaskms(100);
                 }
@@ -350,11 +350,11 @@ esp_err_t put_command(control_msg_t *msg)
         break;
 
     case bt_L:
-        set_str_cmd(-saved.str_turn, saved.str_cmd_speed / (float)SV_FRQ);
+        set_str_cmd(-saved.str_turn, saved.str_cmd_speed / (float)sv_freq);
         break;
 
     case bt_R:
-        set_str_cmd(saved.str_turn, saved.str_cmd_speed / (float)SV_FRQ);
+        set_str_cmd(saved.str_turn, saved.str_cmd_speed / (float)sv_freq);
         break;
 
     case bt_Str_S: // Control by sliding bar
@@ -364,18 +364,18 @@ esp_err_t put_command(control_msg_t *msg)
         res = httpd_req_get_url_query_str(msg->req, query_str, sizeof(query_str));
         res = httpd_query_key_value(query_str, "value", value_str, sizeof(value_str));
         float value = atof(value_str);
-        set_str_cmd(value * saved.str_turn / STR_SLIDER_MAX, saved.str_cmd_speed / (float)SV_FRQ);
+        set_str_cmd(value * saved.str_turn / STR_SLIDER_MAX, saved.str_cmd_speed / (float)sv_freq);
         break;
 
     case bt_BK:
         if (mot_out == 0) // 停止中
         {
-            set_mot_duty(MOT_SPEED_BACK, (40.0f / SV_FRQ));
+            set_mot_duty(MOT_SPEED_BACK, (40.0f / (float)sv_freq));
             set_led_brightness(LEDHIGH);
         }
         else if (mot_out < 0)
         {
-            set_mot_duty(0.0f, (40.0f / SV_FRQ));
+            set_mot_duty(0.0f, (40.0f / (float)sv_freq));
             set_led_brightness(LEDLOW);
         }
         break;

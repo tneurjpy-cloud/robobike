@@ -12,10 +12,21 @@
 
 //////////////////////////////////////////////////////////////
 // device specific functions
-extern esp_err_t icm426xx_init();
-extern void icm426xx_sleep();
-extern void icm426xx_start_read();
-extern void icm426xx_get_data(Tvector6d *pac);
+//////////////// icm426xx using ////////////////
+esp_err_t icm426xx_init();
+void icm426xx_sleep();
+void icm426xx_start_read();
+void icm426xx_get_data(Tvector6d *pac);
+void icm426xx_resetDigitalpath();
+
+esp_err_t icm426xx_init_SPI();
+void icm426xx_sleep_SPI();
+void icm426xx_start_read_SPI();
+void icm426xx_get_data_SPI(Tvector6d *pac);
+
+void (*IMU_sleep)();
+void (*IMU_startRead)();
+void (*IMU_getData)(Tvector6d *pac);
 
 //////////////////////////////////////////////////////////////
 
@@ -86,6 +97,7 @@ bool IMU_getZero()
     static int gyavecount = 0;
     static Tvector6d gysum;
     bool res;
+    float samp_count;
 
     float temp = IMU_roll();
     res = false;
@@ -95,12 +107,13 @@ bool IMU_getZero()
         gysum.gy += acc.gy;
         gysum.gz += acc.gz;
         gyavecount++;
-        if (gyavecount >= SAMPLE_COUNT) // get nsec average
+        samp_count = 3 * sv_freq; // 3sec average
+        if (gyavecount >= samp_count) // get nsec average
         {                               // calc average
             res = true;
-            acc_offset.gx = gysum.gx / SAMPLE_COUNT;
-            acc_offset.gy = gysum.gy / SAMPLE_COUNT;
-            acc_offset.gz = gysum.gz / SAMPLE_COUNT;
+            acc_offset.gx = gysum.gx / samp_count;
+            acc_offset.gy = gysum.gy / samp_count;
+            acc_offset.gz = gysum.gz / samp_count;
             gyavecount = 0;
             gy_auto_cal_done = true;
             gysum = (Tvector6d){0, 0, 0, 0, 0, 0};
@@ -125,4 +138,24 @@ float IMU_roll()
     // Dot product of the roll axis and angular velocity vector
     return GY_YAW * GYDIR_YAW // for stabilizing effect
            + GY_ROLL * GYDIR_ROLL;
+}
+
+esp_err_t IMU_init()
+{
+    extern int PCBver;
+
+    if (PCBver >= 6)
+    {
+        IMU_sleep = icm426xx_sleep_SPI;
+        IMU_startRead = icm426xx_start_read_SPI;
+        IMU_getData = icm426xx_get_data;
+        return icm426xx_init_SPI();
+    }
+    else
+    {
+        IMU_sleep = icm426xx_sleep;
+        IMU_startRead = icm426xx_start_read;
+        IMU_getData = icm426xx_get_data;
+        return icm426xx_init();
+    }
 }

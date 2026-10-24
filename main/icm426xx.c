@@ -8,15 +8,19 @@
 
 static const char TAG[] = "icm426xx";
 
-#define IMU_ADDR 0x68        // AD0 = GND
-#define ICM42607_WHOAMI 0x60 //
-#define PWR_MGMT0 0x1F       // Power management settings
-#define ACCEL_DATA_X1 0x0B   // Accelerometer X-axis high byte
-#define GYRO_CONFIG0 0x20    // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
-#define ACCEL_CONFIG0 0x21   //
-#define ACCEL_CONFIG1 0x22   //
-#define GYRO_CONFIG1 0x23    // [2,0] GYRO_UI_FILT_BW
-#define INTF_CONFIG0 0x35    // for endian change
+extern esp_err_t icm426xx_init_SPI();
+extern void icm426xx_sleep_SPI();
+extern void icm426xx_get_data_SPI(Tvector6d *pac);
+
+#define IMU_ADDR 0x68         // AD0 = GND
+#define ICM42607_WHOAMI 0x60  //
+#define PWR_MGMT0 0x1F        // Power management settings
+#define ACCEL_DATA_X1 0x0B    // Accelerometer X-axis high byte
+#define GYRO_CONFIG0 0x20     // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
+#define ACCEL_CONFIG0 0x21    //
+#define ACCEL_CONFIG1 0x22    //
+#define GYRO_CONFIG1 0x23     // [2,0] GYRO_UI_FILT_BW
+#define INTF_CONFIG0 0x35     // for endian change
 
 #define WHO_AM_I 0x75          // Device ID register
 #define ACC_LOPASS_NON 0x00    // ODR=1.6kHz=800Hz
@@ -78,6 +82,12 @@ static esp_err_t read_who_am_i(void)
 
 void icm426xx_sleep(void)
 {
+    if (PCBver >= 6)
+    {
+        icm426xx_sleep_SPI();
+        return;
+    }
+    
     uint8_t sleep_mode = 0x00; // GYRO_MODE=00 (off), ACCEL_MODE=00 (off), IDLE=0, ACCEL_LP_CLK_SEL=0
     ESP_LOGI(TAG, "entering sleep (PWR_MGMT0=0x%02X)", sleep_mode);
     i2c_write(PWR_MGMT0, &sleep_mode, 1);
@@ -110,23 +120,35 @@ void icm426xx_get_data(Tvector6d *pac)
 {
     uint32_t timeout = 0;
 
+    if (PCBver >= 6)
+    {
+        icm426xx_get_data_SPI(pac);
+        return;
+    }
+
     while (!i2c_done && timeout < 100)
     { // timeout = 2ms
         esp_rom_delay_us(10);
         timeout++;
     }
-    pac->x = *(int16_t *)&raw[0] * AC_SENSITIVITY;
-    pac->y = *(int16_t *)&raw[2] * AC_SENSITIVITY;
-    pac->z = *(int16_t *)&raw[4] * AC_SENSITIVITY;
-    pac->gx = *(int16_t *)&raw[6] * GY_SENSITIVITY;
-    pac->gy = *(int16_t *)&raw[8] * GY_SENSITIVITY;
-    pac->gz = *(int16_t *)&raw[10] * GY_SENSITIVITY;
+    pac->x = ((int16_t *)raw)[0] * AC_SENSITIVITY;
+    pac->y = ((int16_t *)raw)[1] * AC_SENSITIVITY;
+    pac->z = ((int16_t *)raw)[2] * AC_SENSITIVITY;
+    pac->gx = ((int16_t *)raw)[3] * GY_SENSITIVITY;
+    pac->gy = ((int16_t *)raw)[4] * GY_SENSITIVITY;
+    pac->gz = ((int16_t *)raw)[5] * GY_SENSITIVITY;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
 esp_err_t icm426xx_init(void)
 {
     uint8_t cfg;
+
+    if (PCBver >= 6)
+    {
+        ESP_LOGI(TAG, "ICM-42607-P SPI mode");
+        return icm426xx_init_SPI();
+    }
 
     // --- Phase 1: 初期同期書き込み用のI2Cバス生成 ---
     i2c_master_bus_config_t bus_config = {

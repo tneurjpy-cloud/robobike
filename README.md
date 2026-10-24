@@ -82,6 +82,7 @@ Please install the ESP-IDF extension in VS-Code before building this project.
 ```text
 Date        CODE    DATA    Description
 ------------------------------------------------------------------------------------------------
+2026.10.19  1043       6    Add: Check PCBA ver 06
 2026.09.27  1042       6    Add: Test mode on every reset
 2026.09.13  1041       6    Dbg: Fix mobile file selection issue on OTA
 2026.09.11  1040       6    Dbg: Stop servo PWM during OTA

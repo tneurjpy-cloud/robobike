@@ -10,7 +10,7 @@
 static const char TAG[] = "userdevice";
 // deviation 偏差
 
-int pcbver = 0;
+int PCBver = 0;
 
 volatile uint32_t userLastControlTime = 0; // for sleep check counter
 volatile uint32_t startTime;
@@ -232,6 +232,45 @@ uint8_t get_led_brightness()
     return ledc_get_duty(LED_MODE, LED_CHANNEL);
 }
 
+// PCB version check. Detect for continuity in the PCB: connected=ver 5
+int chk_PCBver()
+{
+    gpio_config_t io_conf;
+    bool IO_8_is_high = false;
+
+    io_conf.pin_bit_mask = (1ULL << IO_8);    // IO_8 サーボ信号検出ポート設定
+    io_conf.mode = GPIO_MODE_INPUT;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE; // PULLDOWN
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+
+    io_conf.pin_bit_mask = (1ULL << GPIO_STR); // FOR STR servo PWM GPIO_STR(IO_5)
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+    gpio_config(&io_conf);
+
+    gpio_set_level(GPIO_STR, 0);
+    esp_rom_delay_us(100);
+    IO_8_is_high = gpio_get_level(IO_8);
+
+    gpio_set_level(GPIO_STR, 1);
+    esp_rom_delay_us(100);
+    if (gpio_get_level(IO_8) != IO_8_is_high)
+    {
+        PCBver = 5; // PCB v05
+    }
+    else
+    {
+        PCBver = 6; // PCB v06
+    }
+    gpio_set_level(GPIO_STR, 0);
+
+    return PCBver;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // wait milisec
 // !! Only use in main task !!
@@ -273,7 +312,7 @@ void userdeviceinit()
     };
     adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_2, &config);
 
-    // IO0
+    // IO0 TP1
     io_conf.pin_bit_mask = (1ULL << IO_0);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -282,7 +321,7 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_0, 1);
 
-    // IO1 FOR autoCircling
+    // IO1 FOR autoCircling, IR LED
     io_conf.pin_bit_mask = (1ULL << IO_1);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
@@ -291,7 +330,7 @@ void userdeviceinit()
     gpio_config(&io_conf);
     gpio_set_level(IO_1, 0);
 
-    // IO2 FOR autoCircling
+    // IO2 FOR autoCircling, photo diode
     io_conf.pin_bit_mask = (1ULL << IO_2);
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;

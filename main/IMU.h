@@ -8,62 +8,55 @@ typedef struct
     float gz;
 } Tvector6d;
 
-extern Tvector6d acc;        // last IMU data Direction of gravity:: Vert Dn:x+, Left Dn:z+, Nose Dn:y+
-extern Tvector6d acc_offset; // offsets of IMU data
+extern Tvector6d acc;        // Last IMU data Direction of gravity: Vert Dn:x+, Left Dn:z+, Nose Dn:y+
+extern Tvector6d acc_offset; // Offsets of IMU data
 
 extern volatile bool gy_auto_cal_done;
 extern float *pyaw_coeff;
+extern uint32_t PWM_delay_us; // PLL for synchronizing PWM timer to IMU ODR cycle
 
-//////////////// icm426xx using ////////////////
-esp_err_t icm426xx_init();
-void icm426xx_sleep();
-void icm426xx_start_read();
-void icm426xx_get_data(Tvector6d *pac);
-void icm426xx_resetDigitalpath();
-
-#define IMU_init() icm426xx_init()
-#define IMU_sleep() icm426xx_sleep()
-#define IMU_startRead() icm426xx_start_read()
-#define IMU_getData(p) icm426xx_get_data(p)
+esp_err_t IMU_init();
+extern void (*IMU_sleep)(); // change functions for PCB version
+extern void (*IMU_startRead)();
+extern void (*IMU_getData)(Tvector6d *pac);
+extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal frame period
 
 ////////////////////////////////////////////////
-#define SV_FRQ 250 // [Hz] サーボ制御計算周期 = サーボ信号フレーム周期
-#define SAMPLE_RATE_HZ SV_FRQ
-#define SAMPLE_COUNT (3 * SAMPLE_RATE_HZ)
-#define SPI_SWAP_16(val)  __builtin_bswap16(val)
+#define SPI_SWAP_16(val) __builtin_bswap16(val)
+#define IMU_ODR_TERM 625   // us 1/ODR=625us, 1600Hz=625us
 
 ////////////////////////////////////////////////////////////////
-// IMUの出力軸定義に基づいて、物理的意味に対応するマクロを定義する
-// IMUの取り付け方向を変えたら、ここだけを変更すればよい
-// IMUのROLL軸を示す方向ベクトル
+// Define macros corresponding to physical orientation based on IMU output axis definition.
+// If the mounting direction of the IMU is changed, modify only this section.
+// Direction vector indicating the IMU ROLL axis
 ////////////////////////////////////////////////////////////////
-// IMUの出力軸定義：右手座標系（右ネジの法則）へ統一
+// IMU output axis definition: Unified to Right-Hand Rule
 ////////////////////////////////////////////////////////////////
 
-///////////// 角速度 (deg/s)
-// X軸（前向き）: 「右傾斜＝＋」 IMUが後向きのため反転
-#define GY_ROLL (-(acc.gy - acc_offset.GYOFFSET_ROLL))
-#define GY_ROLL_P(p) (-(p->gy - acc_offset.GYOFFSET_ROLL))
-// Y軸（右向き）: 「頭上げ＝＋」 そのまま
+///////////// Angular velocity (deg/s)
+// X-axis (forward): Right tilt = Positive (Inverted because IMU is mounted facing backward)
+#define GY_ROLL (-(acc.gy - acc_offset.GYOFFSET_ROLL))     // Latest value
+#define GY_ROLL_P(p) (-(p->gy - acc_offset.GYOFFSET_ROLL)) // When retrieving from array/pointer
+// Y-axis (rightward): Nose up = Positive (Direct mapping)
 #define GY_PITCH (acc.gz - acc_offset.GYOFFSET_PITCH)
 #define GY_PITCH_P(p) (p->gz - acc_offset.GYOFFSET_PITCH)
-// Z軸（下向き）: 「右旋回＝＋」 IMUが上向きのため反転
-#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))     // 最新の値
-#define GY_YAW_P(p) (-(p->gx - acc_offset.GYOFFSET_YAW)) // 配列等から取出すときはこれで
+// Z-axis (downward): Right turn = Positive (Inverted because IMU is facing upward)
+#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))
+#define GY_YAW_P(p) (-(p->gx - acc_offset.GYOFFSET_YAW))
 
-//////////// 加速度 (m/s2)
+//////////// Acceleration (m/s2)
 #define ACC_X(p) (-p->y) // head
 #define ACC_Y(p) (p->z)  // right
 #define ACC_Z(p) (-p->x) // down
 
-// --- 以下、計算要素の紐付け ---
+// --- Calculation element mappings below ---
 #define GY_YAW_ELM gx
 #define GY_ROLL_ELM gy
 #define GY_PITCH_ELM gz
 #define LATERAL_G (acc.z)
 ////////////////////////////////////////////////////////////////
 
-// IMUのオフセット誤差（較正値）
+// IMU offset error (calibration values)
 #define GYOFFSET_YAW gx
 #define GYOFFSET_ROLL gy
 #define GYOFFSET_PITCH gz

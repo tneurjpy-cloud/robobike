@@ -1,12 +1,12 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-Copyright 2026.09.27  ROBOBIKEJP M.Tanaami
+Copyright 2026.10.19  ROBOBIKEJP M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
-#define PROGVER 1042 // version for program
+#define PROGVER 1043 // version for program
 #define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>
@@ -18,6 +18,8 @@ Copyright 2026.09.27  ROBOBIKEJP M.Tanaami
 #include <driver/ledc.h>
 #include <driver/gptimer.h>
 #include <driver/i2c_master.h>
+#include <driver/spi_master.h>
+#include <driver/rmt_tx.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/timers.h>
@@ -42,6 +44,7 @@ Copyright 2026.09.27  ROBOBIKEJP M.Tanaami
 #include <nvs_flash.h>
 #include <dns_server.h>
 #include "esp_adc/adc_oneshot.h"
+#include "esp_rom_sys.h"
 
 #include "IMU.h"
 
@@ -68,8 +71,7 @@ Copyright 2026.09.27  ROBOBIKEJP M.Tanaami
 #define GPIO_DRV IO_4
 #define GPIO_STR IO_5
 #define GPIO_STR_IN IO_8
-#define GPIO_EX1 IO_9
-#define IMU_INT0 IO_10
+#define GPIO_INT IO_10
 
 ///////////////// R/C servo using /////////////////
 #define SERVO_NEUTRAL_DUTY (1500.0f) // 0deg 1500us
@@ -132,7 +134,7 @@ typedef enum         // 自動旋回修正用状態定義
 #define STD_RUN 100
 #define STD_STD_NUT 16 // diff STD. - NUT.
 
-#define RING_BUF_SIZE (SAMPLE_RATE_HZ * 5) // for data monitor
+#define RING_BUF_SIZE (250*5) // for data monitor
 #define CTL_DATA_BUFSIZE (65536)           //
 
 #define LEDHIGH 255
@@ -143,6 +145,7 @@ typedef enum         // 自動旋回修正用状態定義
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
 #define waitTaskms(xms) vTaskDelay(pdMS_TO_TICKS(xms))
 
+extern int PCBver;       // checked PCB version 05, 06
 extern float mot_cmd;    // -100 <> +100%
 extern float mot_step;   // %/step
 extern float mot_out;    // extern float str_cmd0; // -180 / +180 deg
@@ -152,7 +155,6 @@ extern float str_target; // -180 / +180 deg
 extern float str_out;    // -180 / +180 deg
 extern float ex1_cmd;    // -180 / +180 deg
 extern float ex1_out;    // -180 / +180 deg
-
 extern TSave saved;
 extern const TSave savedefault;
 
@@ -235,6 +237,7 @@ void wait_str_angle();
 void set_ex1_angle(float angle, float step); // angle in deg, step: /cycle
 void wait_ex1_angle();
 void savenvs();
+int chk_PCBver();
 void showTasks(void);
 const char *cmdID_to_str(TcmdID id);
 void webserver_start(void);

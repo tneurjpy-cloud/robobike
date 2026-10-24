@@ -27,6 +27,7 @@ void check_sleep_indicator(void)
     }
 }
 
+// servo test
 void deviceCheck()
 {
     // str
@@ -56,7 +57,8 @@ void app_main(void)
 
     esp_log_level_set("*", ESP_LOG_INFO);
     ESP_LOGI(TAG, "Start ROBOBIKE system");
-
+    chk_PCBver();
+    ESP_LOGI(TAG, "PCB version: %d", PCBver);
     userdeviceinit();
     if (IMU_init() != ESP_OK)
     {
@@ -70,12 +72,12 @@ void app_main(void)
         }
     }
 
+    set_led_brightness(LEDLOW);
     servo_init();
     webserver_start();
 
     deviceCheck();
 
-    set_led_brightness(LEDLOW);
     // set_str_cmd(0.0f, 100.0f);
     printf("PROGVER=%d DATAVER=%u SYSID=%s\n", PROGVER, DATAVER, SysID());
     ESP_LOGI(TAG, "OpTime=%lusec\n", saved.op_time_s);
