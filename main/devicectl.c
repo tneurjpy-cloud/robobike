@@ -291,14 +291,14 @@ void userdeviceinit()
     };
     adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_2, &config);
 
-    // IO0 TP1
-    io_conf.pin_bit_mask = (1ULL << GPIO_TP1);
+    // IO0 TP0
+    io_conf.pin_bit_mask = (1ULL << IO_0);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
-    gpio_set_level(GPIO_TP1, 0);
+    gpio_set_level(IO_0, 0);
 
     // IO1 FOR autoCircling, IR LED
     io_conf.pin_bit_mask = (1ULL << GPIO_IR_LED);
@@ -310,7 +310,7 @@ void userdeviceinit()
     gpio_set_level(GPIO_IR_LED, 0);
 
     // IO2 FOR autoCircling, photo diode
-    io_conf.pin_bit_mask = (1ULL << GPIO_TP3);
+    io_conf.pin_bit_mask = (1ULL << IO_2);
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;

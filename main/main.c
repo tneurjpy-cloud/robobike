@@ -112,8 +112,10 @@ void app_main(void)
             maxcount = 0;
         }
 
-        if (isNms(&lastdone, 1000))
+        if (isNms(&lastdone, 100))
         {
+            // extern volatile uint16_t fsync_time_delta;
+            // ESP_LOGI(TAG, "dt=%u", fsync_time_delta);
             if ((mot_out == 0.0f) && ((millis() - userLastControlTime) >= SLEEP_DURATION_MS))
             {
                 deepSleep(SLEEPINTERVAL);

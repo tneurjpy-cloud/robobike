@@ -65,15 +65,15 @@ Copyright 2026.10.29  ROBOBIKEJP M.Tanaami
 #define IO_20 20
 #define IO_21 21
 
-#define GPIO_TP1 IO_0
-#define GPIO_TP2 IO_1
+#define GPIO_TP0 IO_0
+#define GPIO_TP1 IO_1
 #define GPIO_IR_LED IO_1
-#define GPIO_TP3 IO_2
+#define GPIO_TP2 IO_2
 #define LED_GPIO IO_3
 #define GPIO_DRV IO_4
 #define GPIO_STR IO_5
-#define I2C_MASTER_SCL_IO IO_7
 #define I2C_MASTER_SDA_IO IO_6
+#define I2C_MASTER_SCL_IO IO_7
 #define GPIO_STR_IN IO_8
 #define GPIO_FSYNC IO_10
 
@@ -139,14 +139,13 @@ typedef enum         // 自動旋回修正用状態定義
 #define STD_STD_NUT 16 // diff STD. - NUT.
 
 //// R/C servo pulse width making
-#define TIMER_RES_HZ 1000000 //
+#define TIMER_RES_HZ 1000000 // 1us resolution
 #define PWM_DUTY_0 0         //
 #define PWM_DUTY_100 4096    // 12bit完全100%固定値
 #define PWM_STAGE_LEN 1000   // us
 #define PWM_MAXLEN 1990      // us
 #define PWM_MINLEN 1010      // us
 #define CB0DELAY 10          // us
-#define STG_INTRVL 1000      // us
 
 //// LED PWM using ////////////////////////////////////////////////////////////////
 #define LED_CHANNEL LEDC_CHANNEL_3
@@ -155,8 +154,8 @@ typedef enum         // 自動旋回修正用状態定義
 #define LED_FREQUENCY 450               // PWM周波数（Hz）
 #define LED_RESOLUTION LEDC_TIMER_8_BIT // 0〜255の輝度制御
 
-#define RING_BUF_SIZE (250*5) // for data monitor
-#define CTL_DATA_BUFSIZE (65536)           //
+#define RING_BUF_SIZE (250 * 5)  // for data monitor
+#define CTL_DATA_BUFSIZE (65536) //
 
 #define LEDHIGH 255
 #define LEDLOW 32

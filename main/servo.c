@@ -95,10 +95,14 @@ const TSave savedefault = {
     .auto_circ_gain = 0.75f                                // (float) autoCirclingGain
 };
 
-uint32_t FirstDelay_us;    // us start delay for sync_timer
-uint32_t PWM_delay_us = 1; // us servo_PWM_timer into PLL slave of IMU
-uint32_t sv_freq;          // [Hz] Servo control calculation period = Servo signal frame period
+static uint32_t firstDelay_us; // us start delay for sync_timer
+uint32_t PWM_pause_us = 1;     // us servo_PWM_timer into PLL slave of IMU
+uint32_t sv_freq;              // [Hz] Servo control calculation period
+
 float sv_term;
+#define STG_INTRVL 1000                                // 1ms / 1MHz
+#define PWM_pause_us_NOMINAL (IMU_ODR_TERM * 7 - 4000) // 375us this is only initial value
+#define FSYNC_TIME_D_NOMINAL 600
 
 // gpTimer for synchronization
 typedef enum // servo sync timer callback step
@@ -395,11 +399,11 @@ static void gyroServiceLoop()
     float w_roll_dev, str_dev, str_dev_diff;
     float w_roll_cmd;
 
-    gpio_set_level(GPIO_TP1, 1); // 20~60us to do
+    gpio_set_level(GPIO_TP0, 1); // 20~60us to do
     IMU_startRead();
     IMU_getData();
     if (auto_en)
-    {    // self-balancing control calculation
+    { // self-balancing control calculation
         str_dev = str_target - str_out;
         str_dev_diff = (str_dev - last_str_dev) * sv_freq;
         str_diff_lps = (1.0f - saved.str_diff_alph) * str_diff_lps + saved.str_diff_alph * str_dev_diff;
@@ -420,14 +424,15 @@ static void gyroServiceLoop()
         if (IMU_getZero())
             saved.acc_offset = acc_offset;
     }
-    gpio_set_level(GPIO_TP1, 0);
+
+    gpio_set_level(GPIO_TP0, 0);
 }
 
 // Wakeup on sync_timer_isr/cb0, do str. mot. servo output
 static void ControlTask(void *pvParameters)
 {
     for (;;)
-    { // 90-250us to do
+    {                                            // 90-250us to do
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
         // 通信で遅れる可能性にかんがみ、前回値を保険として先出ししておく
@@ -436,13 +441,13 @@ static void ControlTask(void *pvParameters)
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_mot_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
 
-        gyroServiceLoop(); // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
+        gyroServiceLoop(); // 最速でIMU読み込み（間に合えば最新値に上書きラッチされる）
 
-        do_str_cmd_calc();              // auto circling calc
-        do_mot_out();                   // 後輪回転
-        do_ex1_out();                   // サイドスタンド
-        str_easing();                   // ステア目標値をゆっくりと変化させる
-        put_control_data();             // 　データロガー
+        do_str_cmd_calc();  // auto circling calc
+        do_mot_out();       // 後輪回転
+        do_ex1_out();       // サイドスタンド
+        str_easing();       // ステア目標値をゆっくりと変化させる
+        put_control_data(); // データロガー
     }
 }
 
@@ -469,7 +474,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
             ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_100);
             ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
         }
-        next_alarm.alarm_count = FirstDelay_us + STG_INTRVL;
+        next_alarm.alarm_count = firstDelay_us + STG_INTRVL;
         gptimer_set_alarm_action(timer, &next_alarm);
         res = true;
         sync_step++;
@@ -485,7 +490,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
             ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, duty_ex1_s2);
             ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
         }
-        next_alarm.alarm_count = FirstDelay_us + STG_INTRVL * 2;
+        next_alarm.alarm_count = firstDelay_us + STG_INTRVL * 2;
         gptimer_set_alarm_action(timer, &next_alarm);
         sync_step++;
         break;
@@ -494,7 +499,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
 
-        next_alarm.alarm_count = FirstDelay_us + STG_INTRVL * 3;
+        next_alarm.alarm_count = firstDelay_us + STG_INTRVL * 3;
         gptimer_set_alarm_action(timer, &next_alarm);
         sync_step++;
         break;
@@ -512,8 +517,21 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         sync_step = cb0;
         gptimer_stop(timer); // 自走終了 外部割込み待ちへ
 
+        extern volatile uint16_t fsync_time_delta;
+        if (PCBver <= 5)
+        {
+            PWM_pause_us = 0;
+        }
+        else if (fsync_time_delta < FSYNC_TIME_D_NOMINAL)
+        {
+            PWM_pause_us = PWM_pause_us_NOMINAL - 1; // 375us - 1
+        }
+        else
+        {
+            PWM_pause_us = PWM_pause_us_NOMINAL + 1; // 375us + 1
+        }
         ledc_timer_pause(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);
-        esp_rom_delay_us(PWM_delay_us);
+        esp_rom_delay_us(PWM_pause_us);
         ledc_timer_resume(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);
         break;
     }
@@ -526,8 +544,6 @@ static bool IRAM_ATTR sync_timer_isr_cb(
 static gptimer_alarm_config_t first_alarm;
 static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
 {
-    // gpio_set_level(GPIO_TP1, 1);
-
     // 外部割込み待ちフェーズの時だけ反応
     if (sync_step != cb0)
     {
@@ -536,13 +552,13 @@ static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_set_alarm_action(sync_timer, &first_alarm);
     gptimer_start(sync_timer);
-
-    // gpio_set_level(GPIO_TP1, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////
 void servo_init()
 {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     pyaw_coeff = &saved.yaw_coeff;
 
     // Create control calculation task
@@ -551,27 +567,25 @@ void servo_init()
     // PCB version check
     if (PCBver <= 5)
     { // IMU = I2C
-        FirstDelay_us = 400;
-        PWM_delay_us = 0;
+        firstDelay_us = 400;
         sv_freq = 250;
         svch_ex1.gpio_num = GPIO_NUM_9; // PCB v05 for stand servo;
     }
     else
-    {                                             // PCB ver. >= 6 IMU = SPI, GPIO_FSYNC
-        FirstDelay_us = 600;                      // 900us
-        PWM_delay_us = (IMU_ODR_TERM * 7 - 4000); // 375us this is only initial value
-        sv_freq = 228;                            // 4ms周期でIMUのODR=228Hzに同期
-        svch_ex1.gpio_num = GPIO_NUM_6;           // PCB v06 or later;
+    {                                   // PCB ver. >= 6 IMU = SPI, GPIO_FSYNC
+        firstDelay_us = 700;            //
+        sv_freq = 228;                  // 4ms周期でIMUのODR=228Hzに同期
+        svch_ex1.gpio_num = GPIO_NUM_6; // PCB v06 or later;
     }
     sv_term = 1.0f / (float)sv_freq;
-    first_alarm.alarm_count = FirstDelay_us;
+    first_alarm.alarm_count = firstDelay_us;
     first_alarm.flags.auto_reload_on_alarm = false;
 
     // gptimer setup
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = TIMER_RES_HZ,
+        .resolution_hz = TIMER_RES_HZ, // 1MHz= 1us resolution
     };
     gptimer_new_timer(&timer_config, &sync_timer);
     gptimer_event_callbacks_t cbs = {
