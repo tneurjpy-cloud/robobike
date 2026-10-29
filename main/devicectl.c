@@ -191,48 +191,27 @@ bool isNms(uint32_t *lastNms, uint32_t Nms)
     }
 }
 
-//// LED PWM using ////////////////////////////////////////////////////////////////
-#define LED_CHANNEL LEDC_CHANNEL_3
-#define LED_TIMER LEDC_TIMER_1
-#define LED_MODE LEDC_LOW_SPEED_MODE
-#define LED_FREQUENCY 450               // PWM周波数（Hz）
-#define LED_RESOLUTION LEDC_TIMER_8_BIT // 0〜255の輝度制御
-
 static void init_led_pwm(void)
 {
-    // タイマー設定
-    ledc_timer_config_t ledc_timer = {
-        .speed_mode = LED_MODE,
-        .timer_num = LED_TIMER,
-        .duty_resolution = LED_RESOLUTION,
-        .freq_hz = LED_FREQUENCY,
-        .clk_cfg = LEDC_AUTO_CLK};
     ledc_timer_config(&ledc_timer);
 
-    // チャンネル設定
-    ledc_channel_config_t ledc_channel = {
-        .gpio_num = LED_GPIO,
-        .speed_mode = LED_MODE,
-        .channel = LED_CHANNEL,
-        .timer_sel = LED_TIMER,
-        .duty = 0, // 初期輝度
-        .hpoint = 0};
     ledc_channel_config(&ledc_channel);
 }
 
 // brightness: 0〜255
-void set_led_brightness(uint8_t brightness)
+void set_led_brightness(uint32_t brightness)
 {
     ledc_set_duty(LED_MODE, LED_CHANNEL, brightness);
     ledc_update_duty(LED_MODE, LED_CHANNEL);
 }
 
-uint8_t get_led_brightness()
+uint32_t get_led_brightness()
 {
     return ledc_get_duty(LED_MODE, LED_CHANNEL);
 }
 
 // PCB version check. Detect for continuity in the PCB: connected=ver 5
+// do before PWM timer start
 int chk_PCBver()
 {
     gpio_config_t io_conf;
@@ -283,7 +262,7 @@ void waitms(uint32_t t)
         waitTaskms(10);
         if (gy_auto_cal_done)
         { // dim
-            uint8_t current_brightness = get_led_brightness();
+            uint32_t current_brightness = get_led_brightness();
             set_led_brightness(0);
             waitTaskms(100);
             set_led_brightness(current_brightness);
@@ -313,25 +292,25 @@ void userdeviceinit()
     adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_2, &config);
 
     // IO0 TP1
-    io_conf.pin_bit_mask = (1ULL << IO_0);
+    io_conf.pin_bit_mask = (1ULL << GPIO_TP1);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
-    gpio_set_level(IO_0, 1);
+    gpio_set_level(GPIO_TP1, 0);
 
     // IO1 FOR autoCircling, IR LED
-    io_conf.pin_bit_mask = (1ULL << IO_1);
+    io_conf.pin_bit_mask = (1ULL << GPIO_IR_LED);
     io_conf.mode = GPIO_MODE_OUTPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
     io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&io_conf);
-    gpio_set_level(IO_1, 0);
+    gpio_set_level(GPIO_IR_LED, 0);
 
     // IO2 FOR autoCircling, photo diode
-    io_conf.pin_bit_mask = (1ULL << IO_2);
+    io_conf.pin_bit_mask = (1ULL << GPIO_TP3);
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
@@ -359,6 +338,7 @@ void userdeviceinit()
     // LED1  setup
     init_led_pwm();
     set_led_brightness(LEDLOW);
+    ESP_LOGI(TAG, "user device init done");
 }
 
 //// deep sleep [sec]seconds /////////////////////////////////////////

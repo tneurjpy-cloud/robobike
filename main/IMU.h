@@ -18,7 +18,7 @@ extern uint32_t PWM_delay_us; // PLL for synchronizing PWM timer to IMU ODR cycl
 esp_err_t IMU_init();
 extern void (*IMU_sleep)(); // change functions for PCB version
 extern void (*IMU_startRead)();
-extern void (*IMU_getData)(Tvector6d *pac);
+extern void (*IMU_getData)();
 extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal frame period
 
 ////////////////////////////////////////////////
@@ -35,14 +35,14 @@ extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal
 
 ///////////// Angular velocity (deg/s)
 // X-axis (forward): Right tilt = Positive (Inverted because IMU is mounted facing backward)
-#define GY_ROLL (-(acc.gy - acc_offset.GYOFFSET_ROLL))     // Latest value
-#define GY_ROLL_P(p) (-(p->gy - acc_offset.GYOFFSET_ROLL)) // When retrieving from array/pointer
+#define GY_ROLL (-(acc.gy - acc_offset.gy))     // Latest value
+#define GY_ROLL_P(p) (-(p->gy - acc_offset.gy)) // When retrieving from array/pointer
 // Y-axis (rightward): Nose up = Positive (Direct mapping)
-#define GY_PITCH (acc.gz - acc_offset.GYOFFSET_PITCH)
-#define GY_PITCH_P(p) (p->gz - acc_offset.GYOFFSET_PITCH)
+#define GY_PITCH (acc.gz - acc_offset.gz)
+#define GY_PITCH_P(p) (p->gz - acc_offset.gz)
 // Z-axis (downward): Right turn = Positive (Inverted because IMU is facing upward)
-#define GY_YAW (-(acc.gx - acc_offset.GYOFFSET_YAW))
-#define GY_YAW_P(p) (-(p->gx - acc_offset.GYOFFSET_YAW))
+#define GY_YAW (-(acc.gx - acc_offset.gx))
+#define GY_YAW_P(p) (-(p->gx - acc_offset.gx))
 
 //////////// Acceleration (m/s2)
 #define ACC_X(p) (-p->y) // head
@@ -57,10 +57,10 @@ extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal
 ////////////////////////////////////////////////////////////////
 
 // IMU offset error (calibration values)
-#define GYOFFSET_YAW gx
-#define GYOFFSET_ROLL gy
-#define GYOFFSET_PITCH gz
-#define DELTA_ROLL dy
+// #define GYOFFSET_YAW gx
+// #define GYOFFSET_ROLL gy
+// #define GYOFFSET_PITCH gz
+// #define DELTA_ROLL dy
 ////////////////////////////////////////////////////////////////
 
 #define GYDIR_YAW (*pyaw_coeff)

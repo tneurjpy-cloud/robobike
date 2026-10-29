@@ -46,25 +46,31 @@ char *get_edit_data()
         "DOSWEEP"        // 16
     ];
     */
-    snprintf(rescsv, sizeof(rescsv), "%c,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d,%.3f,%d",
-             'b',
-             PROGVER,
-             DATAVER,
-             "OK",
-             saved.str0,
-             saved.mot_spd,
-             saved.gain_str,
-             saved.gain_w_roll,
-             saved.gain_str_diff,
-             saved.ang_std_nut,
-             saved.str_turn,
-             saved.yaw_coeff,
-             saved.autoCircling,
-             str_cmd_rate,
-             saved.str_cmd_speed,
-             saved.auto_circ_gain,
-             doSweep);
+    int len =
+        snprintf(rescsv, sizeof(rescsv),
+                 "b,%d,%d,%s,%d,%d,%.3f,%.3f,%.3f,%d,%d,%.3f,%d,%.3f,%d,%.3f,%d",
+                 PROGVER,
+                 DATAVER,
+                 "OK",
+                 saved.str0,
+                 saved.mot_spd,
+                 saved.gain_str,
+                 saved.gain_w_roll,
+                 saved.gain_str_diff,
+                 saved.ang_std_nut,
+                 saved.str_turn,
+                 saved.yaw_coeff,
+                 saved.autoCircling,
+                 str_cmd_rate,
+                 saved.str_cmd_speed,
+                 saved.auto_circ_gain,
+                 doSweep);
 
+    if (len >= sizeof(rescsv))
+    {
+        ESP_LOGE(TAG, "get_edit_data: buffer overflow");
+        rescsv[sizeof(rescsv) - 1] = '\0'; // Ensure null-termination
+    }
     return rescsv;
 }
 
@@ -145,8 +151,7 @@ char *get_control_data()
         Tlogvector *p = &ring_buffer[index_r];
         Tvector6d *pa = &p->acc;
         int len = snprintf(item_buf, sizeof(item_buf),
-                           "%c,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-                           'a',
+                           "a,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
                            p->time,
                            p->drv,
                            p->str,
@@ -212,7 +217,7 @@ static void cmdProcTask(void *pvParameters)
         case bt_F:
             if (mot_out != 0.0f) // 走行中
             {
-                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / (float)sv_freq); // ゆっくりと戻す
+                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / sv_freq); // ゆっくりと戻す
             }
             else // start on stop
             {    // down the stand slowly, motor on, up the stand

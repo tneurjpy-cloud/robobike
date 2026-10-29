@@ -58,7 +58,6 @@ void app_main(void)
     esp_log_level_set("*", ESP_LOG_INFO);
     ESP_LOGI(TAG, "Start ROBOBIKE system");
     chk_PCBver();
-    ESP_LOGI(TAG, "PCB version: %d", PCBver);
     userdeviceinit();
     if (IMU_init() != ESP_OK)
     {
@@ -72,14 +71,15 @@ void app_main(void)
         }
     }
 
-    set_led_brightness(LEDLOW);
     servo_init();
     webserver_start();
 
     deviceCheck();
 
     // set_str_cmd(0.0f, 100.0f);
+    printf("PCB version: %d\n", PCBver);
     printf("PROGVER=%d DATAVER=%u SYSID=%s\n", PROGVER, DATAVER, SysID());
+    printf("IMU gx=%f gy=%f gz=%f\n", acc.gx, acc.gy, acc.gz);
     ESP_LOGI(TAG, "OpTime=%lusec\n", saved.op_time_s);
     showTasks();
 
@@ -89,7 +89,7 @@ void app_main(void)
         waitms(100);
 
         if (auto_en && (str_out >= (STRMAX - 2) || str_out <= -(STRMAX - 2)))
-        { // 転倒判定
+        { // Collision check
             extern uint32_t duty_str_prev;
             ESP_LOGI(TAG, "Str duty_s1=%lu", duty_str_prev);
             if (maxcount >= 5)

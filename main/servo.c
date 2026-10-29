@@ -2,6 +2,7 @@
     servo.c
 
 サーボ制御用タイマーchart (4ステージ・4000usフレーム・全サーボ相乗り版)
+2026.10.25 chg. for PCB v6
 
     == : H level
     __ : L level or stop
@@ -12,7 +13,7 @@
 LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1 duty可変0-100%)
            s0           s1            s2          s3
 ____+============+======_______+____________+____________+=====
-        1000us    500us  500us     1000us       1000us
+        1000us    500us  500us     1000us     1000+375us
 
 GPIO_STR_IN <-- GPIO_STR external interrupt 4ms interval
     cbPulseIn
@@ -21,9 +22,9 @@ ____|____________________________________________________|_____
 
 sync_timer(gptimer)
 CB         cb0          cb1           cb2          cb3
-____+------|------------|-------------|------------|_____+-----
-    0     400us        1400us        2400us       3400us
-    FIRSTWT  STGINTRVL    STGINTRVL    STGINTRVL
+____+------|-------------|-------------|------------|_____+-----
+    0     900us        1400us        2400us       3400us
+    FIRSTWT  STGINTRVL     STGINTRVL     STGINTRVL
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
@@ -32,12 +33,12 @@ cbStrIn: (GPIO external interrupt)
 cb0: (gptimer countup interrupt)
   ControlTask起床
   IMUのデータ取り込みを行い、全サーボの計算、
-  str,mot s1のduty=0-50% を書き出し
+  str,mot s1のduty=0-100% を書き出し
   stdサーボのs0のduty=100%を書き出し
   1000us後のtimer割り込みをスタート
 
 cb1: (gptimer countup interrupt)
-  std s1のduty=0-50% を書き出し
+  std s1のduty=0-100% を書き出し
   str,motサーボのs2のduty=0%を書き出し
   1000us後のtimer割り込みをスタート
 
@@ -94,54 +95,10 @@ const TSave savedefault = {
     .auto_circ_gain = 0.75f                                // (float) autoCirclingGain
 };
 
-//// R/C servo pulse width making
-#define TIMER_RES_HZ 1000000 //
-#define PWM_DUTY_0 0         //
-#define PWM_DUTY_100 4096    // 12bit完全100%固定値
-#define PWM_STAGE_LEN 1000   // us
-#define PWM_MAXLEN 1990      // us
-#define PWM_MINLEN 1010      // us
-#define CB0DELAY 10          // us
-#define STG_INTRVL 1000      // us
-
-uint32_t FirstDelay_us = 400; // us start delay for sync_timer
+uint32_t FirstDelay_us;    // us start delay for sync_timer
 uint32_t PWM_delay_us = 1; // us servo_PWM_timer into PLL slave of IMU
-uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal frame period
-
-/* 全サーボ共通：12bit高精度タイマーへ一本化 */
-static const ledc_timer_config_t servo_PWM_timer = {
-    .speed_mode = LEDC_LOW_SPEED_MODE,
-    .duty_resolution = LEDC_TIMER_12_BIT, // 4096 steps for 100% duty
-    .timer_num = LEDC_TIMER_1,
-    .freq_hz = 250 * 4, // 250Hz * 4 = 1000Hz (1ステージ1000us)
-    .clk_cfg = LEDC_AUTO_CLK};
-
-static ledc_channel_config_t svch_mot = {
-    .speed_mode = LEDC_LOW_SPEED_MODE,
-    .channel = LEDC_CHANNEL_0,
-    .timer_sel = LEDC_TIMER_1,
-    .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = GPIO_DRV,
-    .duty = PWM_DUTY_100, // 初期状態のs0は100%（H開始）
-    .hpoint = 0};
-
-static ledc_channel_config_t svch_str = {
-    .speed_mode = LEDC_LOW_SPEED_MODE,
-    .channel = LEDC_CHANNEL_1,
-    .timer_sel = LEDC_TIMER_1,
-    .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = GPIO_STR,
-    .duty = PWM_DUTY_100, // 初期状態のs0は100%（H開始）
-    .hpoint = 0};
-
-static ledc_channel_config_t svch_ex1 = {
-    .speed_mode = LEDC_LOW_SPEED_MODE,
-    .channel = LEDC_CHANNEL_2,
-    .timer_sel = LEDC_TIMER_1,
-    .intr_type = LEDC_INTR_DISABLE,
-    .gpio_num = 0,      // dummy
-    .duty = PWM_DUTY_0, // ★スタンドは1ステージ遅らせるため、初期状態のs0は0%（L開始）
-    .hpoint = 0};
+uint32_t sv_freq;          // [Hz] Servo control calculation period = Servo signal frame period
+float sv_term;
 
 // gpTimer for synchronization
 typedef enum // servo sync timer callback step
@@ -167,12 +124,12 @@ extern void icm426xx_discard_data_SPI();
 #include <math.h>
 
 // for sin wave sweep ////////////////////////////////////////////////////
-#define DT (1.0f / (float)sv_freq) // サンプリング周期 (ms)
-#define START_FREQ 0.3f    // 開始周波数 (Hz)
-#define END_FREQ 40.0f     // 終了周波数 (Hz)
-#define SWEEP_TIME 30.0f   // スイープ時間
-#define TWO_PI 6.2831853f  // 2pai rad
-#define SWEEP_W 5.0f       // sweep width(deg)
+#define DT() (float)(1.0f / sv_freq) // サンプリング周期 (ms)
+#define START_FREQ 0.3f              // 開始周波数 (Hz)
+#define END_FREQ 40.0f               // 終了周波数 (Hz)
+#define SWEEP_TIME 30.0f             // スイープ時間
+#define TWO_PI 6.2831853f            // 2pai rad
+#define SWEEP_W 5.0f                 // sweep width(deg)
 
 bool doSweep = false;
 float current_time = 0.0f; // sec
@@ -190,7 +147,7 @@ void init_sweep()
     doSweep = true;
     current_freq = START_FREQ;
     sweep_phase = 0.0f;
-    float total_steps = SWEEP_TIME / DT;
+    float total_steps = SWEEP_TIME * sv_freq;
     // K = (END_FREQ / START_FREQ) ^ (1 / total_steps)
     freq_multiplier = powf(END_FREQ / START_FREQ, 1.0f / total_steps);
     swp_ampletude = SWEEP_W;
@@ -210,7 +167,7 @@ static float get_sweep_sine_value(void)
         return 0.0f;
     }
 
-    float delta_phase = TWO_PI * current_freq * DT;
+    float delta_phase = TWO_PI * current_freq * sv_term;
     sweep_phase += delta_phase;
 
     if (sweep_phase >= TWO_PI)
@@ -229,7 +186,7 @@ static float get_sweep_sine_value(void)
         current_freq = END_FREQ; // 上限ホールド
     }
 
-    current_time += DT;
+    current_time += sv_term;
     if (current_time >= SWEEP_TIME)
     {
         current_time = 0.0f;
@@ -431,7 +388,6 @@ void wait_str_angle()
     ESP_LOGI(TAG, "wait str end");
 }
 
-// self-balancing control calculation
 static void gyroServiceLoop()
 {
     static float last_str_dev = 0.0f;
@@ -439,23 +395,24 @@ static void gyroServiceLoop()
     float w_roll_dev, str_dev, str_dev_diff;
     float w_roll_cmd;
 
+    gpio_set_level(GPIO_TP1, 1); // 20~60us to do
     IMU_startRead();
-    swp_sg = get_sweep_sine_value();
-
+    IMU_getData();
     if (auto_en)
-    {
+    {    // self-balancing control calculation
         str_dev = str_target - str_out;
         str_dev_diff = (str_dev - last_str_dev) * sv_freq;
         str_diff_lps = (1.0f - saved.str_diff_alph) * str_diff_lps + saved.str_diff_alph * str_dev_diff;
         w_roll_cmd = str_dev * saved.gain_str + str_diff_lps * saved.gain_str_diff;
         w_roll_dev = w_roll_cmd - IMU_roll();
-        str_out -= w_roll_dev * saved.gain_w_roll * (1.0f / sv_freq);
+        str_out -= w_roll_dev * saved.gain_w_roll * sv_term;
         last_str_dev = str_dev;
         chklimit(&str_out, STRMAX);
         str_pwm_out(str_out);
     }
     else
-    {
+    { // servo responce sweep test
+        swp_sg = get_sweep_sine_value();
         last_str_dev = 0.0f;
         str_diff_lps = 0.0f;
         str_out = 0.0f;
@@ -463,17 +420,17 @@ static void gyroServiceLoop()
         if (IMU_getZero())
             saved.acc_offset = acc_offset;
     }
+    gpio_set_level(GPIO_TP1, 0);
 }
 
 // Wakeup on sync_timer_isr/cb0, do str. mot. servo output
 static void ControlTask(void *pvParameters)
 {
     for (;;)
-    {
+    { // 90-250us to do
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
-        gpio_set_level(IO_1, 1); // IR LED ON
-        // I2Cで待たされる前に、前回値を保険として先出ししておく
+        // 通信で遅れる可能性にかんがみ、前回値を保険として先出ししておく
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_mot_prev);
@@ -481,12 +438,11 @@ static void ControlTask(void *pvParameters)
 
         gyroServiceLoop(); // 最速でI2C読み込み（間に合えば最新値に上書きラッチされる）
 
-        do_str_cmd_calc();       // auto circling calc
-        gpio_set_level(IO_1, 0); // IR LED OFF
-        do_mot_out();
-        do_ex1_out();
-        str_easing();
-        put_control_data();
+        do_str_cmd_calc();              // auto circling calc
+        do_mot_out();                   // 後輪回転
+        do_ex1_out();                   // サイドスタンド
+        str_easing();                   // ステア目標値をゆっくりと変化させる
+        put_control_data();             // 　データロガー
     }
 }
 
@@ -503,6 +459,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     bool res = false;
 
+    gpio_set_level(GPIO_IR_LED, 1); // IR LED ON
     switch (sync_step)
     {
     case cb0:
@@ -561,6 +518,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         break;
     }
 
+    gpio_set_level(GPIO_IR_LED, 0); // IR LED OFF
     return res;
 }
 
@@ -568,6 +526,8 @@ static bool IRAM_ATTR sync_timer_isr_cb(
 static gptimer_alarm_config_t first_alarm;
 static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
 {
+    // gpio_set_level(GPIO_TP1, 1);
+
     // 外部割込み待ちフェーズの時だけ反応
     if (sync_step != cb0)
     {
@@ -576,47 +536,36 @@ static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
     gptimer_set_raw_count(sync_timer, 0);
     gptimer_set_alarm_action(sync_timer, &first_alarm);
     gptimer_start(sync_timer);
+
+    // gpio_set_level(GPIO_TP1, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////
 void servo_init()
 {
-    extern int PCBver;
-    extern void servo_init_FSYNC();
-    gpio_num_t GPIO_int_port;
-
     pyaw_coeff = &saved.yaw_coeff;
 
     // Create control calculation task
     xTaskCreate(ControlTask, "ControlTask", 2048, NULL, configMAX_PRIORITIES - 1, &xControlTaskHandle);
 
     // PCB version check
-    if (PCBver <= 5){
-        GPIO_int_port = GPIO_STR_IN;
+    if (PCBver <= 5)
+    { // IMU = I2C
+        FirstDelay_us = 400;
         PWM_delay_us = 0;
         sv_freq = 250;
         svch_ex1.gpio_num = GPIO_NUM_9; // PCB v05 for stand servo;
-    } else {
-        GPIO_int_port = GPIO_INT;
-        PWM_delay_us = (IMU_ODR_TERM * 7 - 4000);
-        sv_freq = 228; // 4ms周期でIMUのODR=228Hzに同期するため
-        svch_ex1.gpio_num = GPIO_NUM_6; // PCB v06 or later;
     }
+    else
+    {                                             // PCB ver. >= 6 IMU = SPI, GPIO_FSYNC
+        FirstDelay_us = 600;                      // 900us
+        PWM_delay_us = (IMU_ODR_TERM * 7 - 4000); // 375us this is only initial value
+        sv_freq = 228;                            // 4ms周期でIMUのODR=228Hzに同期
+        svch_ex1.gpio_num = GPIO_NUM_6;           // PCB v06 or later;
+    }
+    sv_term = 1.0f / (float)sv_freq;
     first_alarm.alarm_count = FirstDelay_us;
     first_alarm.flags.auto_reload_on_alarm = false;
-
-    // GPIO interrupt port setup
-    gpio_config_t io_conf = {
-        .intr_type = GPIO_INTR_POSEDGE,
-        .mode = GPIO_MODE_INPUT,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-    };
-    io_conf.pin_bit_mask = (1ULL << GPIO_int_port);
-
-    gpio_config(&io_conf);
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(GPIO_int_port, gpio_PulseIn_isr_handler, NULL);
 
     // gptimer setup
     gptimer_config_t timer_config = {
@@ -631,6 +580,19 @@ void servo_init()
     gptimer_register_event_callbacks(sync_timer, &cbs, NULL);
     gptimer_enable(sync_timer);
 
+    // Attach a GPIO INPUT interrupt directly to the PWM OUTPUT pin
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_POSEDGE,
+        .mode = GPIO_MODE_INPUT,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+    };
+    io_conf.pin_bit_mask = (1ULL << svch_str.gpio_num);
+
+    gpio_config(&io_conf);
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(svch_str.gpio_num, gpio_PulseIn_isr_handler, NULL);
+
     // PWM timer setup
     ledc_timer_config(&servo_PWM_timer);
     ledc_channel_config(&svch_mot);
@@ -643,5 +605,5 @@ void servo_init()
     set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f);
 
     auto_disable();
-    ESP_LOGI(TAG, "All 3 servos integrated into 4-STAGE INTERLEAVED SYNC mode.");
+    ESP_LOGI(TAG, "3 servos integrated into INTERLEAVED SYNC mode.");
 }

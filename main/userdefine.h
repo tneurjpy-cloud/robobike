@@ -1,7 +1,7 @@
 /*////////////////////////////////////////////////////////////////////////////////
 userdefine.h        ROBOBIKE project
 
-Copyright 2026.10.19  ROBOBIKEJP M.Tanaami
+Copyright 2026.10.29  ROBOBIKEJP M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
@@ -65,13 +65,17 @@ Copyright 2026.10.19  ROBOBIKEJP M.Tanaami
 #define IO_20 20
 #define IO_21 21
 
+#define GPIO_TP1 IO_0
+#define GPIO_TP2 IO_1
+#define GPIO_IR_LED IO_1
+#define GPIO_TP3 IO_2
 #define LED_GPIO IO_3
-#define I2C_MASTER_SCL_IO IO_7
-#define I2C_MASTER_SDA_IO IO_6
 #define GPIO_DRV IO_4
 #define GPIO_STR IO_5
+#define I2C_MASTER_SCL_IO IO_7
+#define I2C_MASTER_SDA_IO IO_6
 #define GPIO_STR_IN IO_8
-#define GPIO_INT IO_10
+#define GPIO_FSYNC IO_10
 
 ///////////////// R/C servo using /////////////////
 #define SERVO_NEUTRAL_DUTY (1500.0f) // 0deg 1500us
@@ -125,7 +129,7 @@ typedef enum         // 自動旋回修正用状態定義
     rsInner_Stable   // 内側走行、定常旋回
 } TRunState;
 
-#define STRMAX 80
+#define STRMAX 90
 #define STR_STOP 40
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
@@ -134,13 +138,30 @@ typedef enum         // 自動旋回修正用状態定義
 #define STD_RUN 100
 #define STD_STD_NUT 16 // diff STD. - NUT.
 
+//// R/C servo pulse width making
+#define TIMER_RES_HZ 1000000 //
+#define PWM_DUTY_0 0         //
+#define PWM_DUTY_100 4096    // 12bit完全100%固定値
+#define PWM_STAGE_LEN 1000   // us
+#define PWM_MAXLEN 1990      // us
+#define PWM_MINLEN 1010      // us
+#define CB0DELAY 10          // us
+#define STG_INTRVL 1000      // us
+
+//// LED PWM using ////////////////////////////////////////////////////////////////
+#define LED_CHANNEL LEDC_CHANNEL_3
+#define LED_TIMER LEDC_TIMER_2
+#define LED_MODE LEDC_LOW_SPEED_MODE
+#define LED_FREQUENCY 450               // PWM周波数（Hz）
+#define LED_RESOLUTION LEDC_TIMER_8_BIT // 0〜255の輝度制御
+
 #define RING_BUF_SIZE (250*5) // for data monitor
 #define CTL_DATA_BUFSIZE (65536)           //
 
 #define LEDHIGH 255
 #define LEDLOW 32
 #define LEDOFF 0
-#define SLEEPINTERVAL (10 * 1000UL)          // 10 sec to sleep
+#define SLEEPINTERVAL (30 * 1000UL)          // n sec to sleep
 #define SLEEP_DURATION_MS (15 * 60 * 1000UL) // 15min to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
 #define waitTaskms(xms) vTaskDelay(pdMS_TO_TICKS(xms))
@@ -155,6 +176,8 @@ extern float str_target; // -180 / +180 deg
 extern float str_out;    // -180 / +180 deg
 extern float ex1_cmd;    // -180 / +180 deg
 extern float ex1_out;    // -180 / +180 deg
+extern uint32_t sv_freq;
+extern float sv_term;
 extern TSave saved;
 extern const TSave savedefault;
 
@@ -174,6 +197,14 @@ extern const httpd_uri_t ncsi;
 extern const httpd_uri_t generate_204;
 extern const httpd_uri_t ota_update;
 extern const httpd_uri_t ota;
+
+extern const ledc_timer_config_t servo_PWM_timer;
+extern ledc_channel_config_t svch_mot;
+extern ledc_channel_config_t svch_str;
+extern ledc_channel_config_t svch_ex1;
+
+extern ledc_timer_config_t ledc_timer;
+extern ledc_channel_config_t ledc_channel;
 
 // control command
 #define COMMAND_LIST(V) \
@@ -242,8 +273,8 @@ void showTasks(void);
 const char *cmdID_to_str(TcmdID id);
 void webserver_start(void);
 char *SysID(void);
-void set_led_brightness(uint8_t brightness);
-uint8_t get_led_brightness();
+void set_led_brightness(uint32_t brightness);
+uint32_t get_led_brightness();
 void deepSleep(uint32_t ms);
 void auto_disable(void);
 void auto_enable(void);

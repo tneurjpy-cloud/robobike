@@ -6,6 +6,7 @@
 #include <math.h>
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
+#include <esp_timer.h>
 #include <stdio.h>
 #include <string.h>
 #include "IMU.h"
@@ -13,20 +14,20 @@
 //////////////////////////////////////////////////////////////
 // device specific functions
 //////////////// icm426xx using ////////////////
-esp_err_t icm426xx_init();
-void icm426xx_sleep();
-void icm426xx_start_read();
-void icm426xx_get_data(Tvector6d *pac);
+esp_err_t icm426xx_init_I2C();
+void icm426xx_sleep_I2C();
+void icm426xx_start_read_I2C();
+void icm426xx_get_data_I2C();
 void icm426xx_resetDigitalpath();
 
 esp_err_t icm426xx_init_SPI();
 void icm426xx_sleep_SPI();
 void icm426xx_start_read_SPI();
-void icm426xx_get_data_SPI(Tvector6d *pac);
+void icm426xx_get_data_SPI();
 
 void (*IMU_sleep)();
 void (*IMU_startRead)();
-void (*IMU_getData)(Tvector6d *pac);
+void (*IMU_getData)();
 
 //////////////////////////////////////////////////////////////
 
@@ -91,22 +92,26 @@ void calibrate_roll()
 }
 #endif
 
-// 自動制御offの時、10msごとに呼び出してゼロ点較正
+// 自動制御offの時、4msごとに呼び出してゼロ点較正
 bool IMU_getZero()
 {
     static int gyavecount = 0;
     static Tvector6d gysum;
+    static uint32_t lastTime = 0;
+    uint32_t nowTime;
     bool res;
     float samp_count;
 
     float temp = IMU_roll();
     res = false;
-    if (fabsf(temp) < 2.0f)
+    nowTime = (uint32_t)(esp_timer_get_time() / 1000);
+    if ( (nowTime - lastTime < 100) && (fabsf(temp) < 2.0f) )
     {
         gysum.gx += acc.gx; // acc is raw data
         gysum.gy += acc.gy;
         gysum.gz += acc.gz;
         gyavecount++;
+        lastTime = nowTime;
         samp_count = 3 * sv_freq; // 3sec average
         if (gyavecount >= samp_count) // get nsec average
         {                               // calc average
@@ -121,6 +126,7 @@ bool IMU_getZero()
     }
     else
     { // detect noise, big movement, and reset the average
+        lastTime = nowTime;
         gyavecount = 0;
         gysum = (Tvector6d){0, 0, 0, 0, 0, 0};
     }
@@ -134,8 +140,6 @@ bool IMU_getZero()
 // deg/sec 3-axis calibrated
 float IMU_roll()
 {
-    IMU_getData(&acc);
-    // Dot product of the roll axis and angular velocity vector
     return GY_YAW * GYDIR_YAW // for stabilizing effect
            + GY_ROLL * GYDIR_ROLL;
 }
@@ -146,16 +150,10 @@ esp_err_t IMU_init()
 
     if (PCBver >= 6)
     {
-        IMU_sleep = icm426xx_sleep_SPI;
-        IMU_startRead = icm426xx_start_read_SPI;
-        IMU_getData = icm426xx_get_data;
         return icm426xx_init_SPI();
     }
     else
     {
-        IMU_sleep = icm426xx_sleep;
-        IMU_startRead = icm426xx_start_read;
-        IMU_getData = icm426xx_get_data;
-        return icm426xx_init();
+        return icm426xx_init_I2C();
     }
 }

@@ -6,7 +6,8 @@
     "board/esp32c3-builtin.cfg"
   ],
   "idf.customExtraVars": {
-    "IDF_TARGET": "esp32c3"
+    "IDF_TARGET": "esp32c3",
+    "OPENOCD_USB_ADAPTER_LOCATION": "2-1"
   },
   "clangd.path": "C:\\Espressif\\tools\\esp-clang\\esp-20.1.1_20250829\\esp-clang\\bin\\clangd.exe",
   "clangd.arguments": [
@@ -17,5 +18,5 @@
   "cmake.cmakePath": "C:\\Espressif\\tools\\cmake\\4.0.3\\bin\\cmake.exe",
   "cmake.configureOnOpen": false,
   "cmake.configureOnEdit": false,
-  "idf.port": "COM6"
+  "idf.port": "COM60"
 }

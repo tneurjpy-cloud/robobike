@@ -6,21 +6,21 @@
 */
 #include "userdefine.h"
 
-static const char TAG[] = "icm426xx";
+static const char TAG[] = "icm426xxI2C";
 
 extern esp_err_t icm426xx_init_SPI();
 extern void icm426xx_sleep_SPI();
-extern void icm426xx_get_data_SPI(Tvector6d *pac);
+extern void icm426xx_get_data_SPI();
 
-#define IMU_ADDR 0x68         // AD0 = GND
-#define ICM42607_WHOAMI 0x60  //
-#define PWR_MGMT0 0x1F        // Power management settings
-#define ACCEL_DATA_X1 0x0B    // Accelerometer X-axis high byte
-#define GYRO_CONFIG0 0x20     // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
-#define ACCEL_CONFIG0 0x21    //
-#define ACCEL_CONFIG1 0x22    //
-#define GYRO_CONFIG1 0x23     // [2,0] GYRO_UI_FILT_BW
-#define INTF_CONFIG0 0x35     // for endian change
+#define IMU_ADDR 0x68        // AD0 = GND
+#define ICM42607_WHOAMI 0x60 //
+#define PWR_MGMT0 0x1F       // Power management settings
+#define ACCEL_DATA_X1 0x0B   // Accelerometer X-axis high byte
+#define GYRO_CONFIG0 0x20    // [6,5] GYRO_UI_FS_SEL [3,0] GYRO_ODR
+#define ACCEL_CONFIG0 0x21   //
+#define ACCEL_CONFIG1 0x22   //
+#define GYRO_CONFIG1 0x23    // [2,0] GYRO_UI_FILT_BW
+#define INTF_CONFIG0 0x35    // for endian change
 
 #define WHO_AM_I 0x75          // Device ID register
 #define ACC_LOPASS_NON 0x00    // ODR=1.6kHz=800Hz
@@ -80,14 +80,8 @@ static esp_err_t read_who_am_i(void)
     return ESP_OK;
 }
 
-void icm426xx_sleep(void)
+void icm426xx_sleep_I2C(void)
 {
-    if (PCBver >= 6)
-    {
-        icm426xx_sleep_SPI();
-        return;
-    }
-    
     uint8_t sleep_mode = 0x00; // GYRO_MODE=00 (off), ACCEL_MODE=00 (off), IDLE=0, ACCEL_LP_CLK_SEL=0
     ESP_LOGI(TAG, "entering sleep (PWR_MGMT0=0x%02X)", sleep_mode);
     i2c_write(PWR_MGMT0, &sleep_mode, 1);
@@ -98,7 +92,7 @@ static uint8_t raw[12] = {0};
 static volatile bool i2c_done = true;
 
 //// call this to start reading
-void icm426xx_start_read(void)
+void icm426xx_start_read_I2C(void)
 {
     static uint8_t addr[1] = {ACCEL_DATA_X1};
 
@@ -116,13 +110,13 @@ static bool IRAM_ATTR i2c_trans_done_callback(i2c_master_dev_handle_t dev_handle
 }
 
 //// Call this after icm426xx_start_read()
-void icm426xx_get_data(Tvector6d *pac)
+void icm426xx_get_data_I2C()
 {
     uint32_t timeout = 0;
 
     if (PCBver >= 6)
     {
-        icm426xx_get_data_SPI(pac);
+        icm426xx_get_data_SPI();
         return;
     }
 
@@ -131,24 +125,22 @@ void icm426xx_get_data(Tvector6d *pac)
         esp_rom_delay_us(10);
         timeout++;
     }
-    pac->x = ((int16_t *)raw)[0] * AC_SENSITIVITY;
-    pac->y = ((int16_t *)raw)[1] * AC_SENSITIVITY;
-    pac->z = ((int16_t *)raw)[2] * AC_SENSITIVITY;
-    pac->gx = ((int16_t *)raw)[3] * GY_SENSITIVITY;
-    pac->gy = ((int16_t *)raw)[4] * GY_SENSITIVITY;
-    pac->gz = ((int16_t *)raw)[5] * GY_SENSITIVITY;
+    acc.x = ((int16_t *)raw)[0] * AC_SENSITIVITY;
+    acc.y = ((int16_t *)raw)[1] * AC_SENSITIVITY;
+    acc.z = ((int16_t *)raw)[2] * AC_SENSITIVITY;
+    acc.gx = ((int16_t *)raw)[3] * GY_SENSITIVITY;
+    acc.gy = ((int16_t *)raw)[4] * GY_SENSITIVITY;
+    acc.gz = ((int16_t *)raw)[5] * GY_SENSITIVITY;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
-esp_err_t icm426xx_init(void)
+esp_err_t icm426xx_init_I2C(void)
 {
     uint8_t cfg;
 
-    if (PCBver >= 6)
-    {
-        ESP_LOGI(TAG, "ICM-42607-P SPI mode");
-        return icm426xx_init_SPI();
-    }
+    IMU_sleep = icm426xx_sleep_I2C;
+    IMU_startRead = icm426xx_start_read_I2C;
+    IMU_getData = icm426xx_get_data_I2C;
 
     // --- Phase 1: 初期同期書き込み用のI2Cバス生成 ---
     i2c_master_bus_config_t bus_config = {
