@@ -12,7 +12,7 @@ volatile TRunState runState = rsOuter;
 void do_str_cmd_calc()
 {
     uint32_t now = millis();
-    bool inCirc = !gpio_get_level(IO_2);
+    bool inCirc = !gpio_get_level(GPIO_IR_PTR);
 
     if (!saved.autoCircling)
     {

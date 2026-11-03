@@ -67,7 +67,8 @@ Copyright 2026.10.29  ROBOBIKEJP M.Tanaami
 
 #define GPIO_TP0 IO_0
 #define GPIO_TP1 IO_1
-#define GPIO_IR_LED IO_1
+#define GPIO_IR_LED IO_1 // IR LED
+#define GPIO_IR_PTR IO_2 // IR photo Transistor
 #define GPIO_TP2 IO_2
 #define LED_GPIO IO_3
 #define GPIO_DRV IO_4

@@ -435,6 +435,7 @@ static void ControlTask(void *pvParameters)
     {                                            // 90-250us to do
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
+        gpio_set_level(GPIO_IR_LED, 1); // IR LED ON
         // 通信で遅れる可能性にかんがみ、前回値を保険として先出ししておく
         ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
@@ -444,6 +445,8 @@ static void ControlTask(void *pvParameters)
         gyroServiceLoop(); // 最速でIMU読み込み（間に合えば最新値に上書きラッチされる）
 
         do_str_cmd_calc();  // auto circling calc
+        gpio_set_level(GPIO_IR_LED, 0); // IR LED OFF
+
         do_mot_out();       // 後輪回転
         do_ex1_out();       // サイドスタンド
         str_easing();       // ステア目標値をゆっくりと変化させる
@@ -464,7 +467,6 @@ static bool IRAM_ATTR sync_timer_isr_cb(
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     bool res = false;
 
-    gpio_set_level(GPIO_IR_LED, 1); // IR LED ON
     switch (sync_step)
     {
     case cb0:
@@ -545,7 +547,6 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         break;
     }
 
-    gpio_set_level(GPIO_IR_LED, 0); // IR LED OFF
     return res;
 }
 

@@ -308,7 +308,7 @@ void userdeviceinit()
     gpio_set_level(GPIO_IR_LED, 0);
 
     // IO2 FOR autoCircling, photo diode
-    io_conf.pin_bit_mask = (1ULL << IO_2);
+    io_conf.pin_bit_mask = (1ULL << GPIO_IR_PTR);
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
