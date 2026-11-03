@@ -1,11 +1,11 @@
 #include "userdefine.h"
 
+//// WHO_AM_I = 0x63 ////
 static const char TAG[] = "icm426xx_spi";
 
 // uint16_t imu_timestamp_us = 0;
 volatile uint16_t fsync_time_delta = 0; // FSYNCからODRまでのタイムデルタ
 
-#define ICM42670L_WHOAMI 0x63
 #define PIN_CS IO_9
 #define PIN_SCLK IO_8
 #define PIN_SDA IO_7

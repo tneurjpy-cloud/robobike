@@ -120,7 +120,7 @@ void put_control_data()
 
 /*
 a,3715500,-100.000,-90.000,-90.000,-111.267,-129.328,-134.046
-64bytes/line * 200Hz*1sec=12800bytes
+Each CSV record is formatted into a 128-byte temporary buffer.
 */
 // call this in web server task to get data for monitor
 char *get_control_data()

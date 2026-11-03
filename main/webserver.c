@@ -35,13 +35,13 @@ static void wifi_init_softap(void)
     esp_wifi_get_mac(WIFI_IF_AP, mac);
     snprintf(ssid, sizeof(ssid), "ROBOBIKE-%02X%02X%02X", mac[3], mac[4], mac[5]);
 
-    int ssid_len = strlen(ssid);
+    size_t ssid_len = strlen(ssid);
     // 1〜13(JAPAN ONLY) 1-11(World wide)
     uint8_t channel = ((((uint16_t)mac[4] << 8 | (uint16_t)mac[5])) % 11) + 1; // 1 - 11
     wifi_config_t wifi_config = {
         .ap = {
             .password = "",
-            .ssid_len = (uint8_t)strlen(ssid),
+            .ssid_len = (uint8_t)ssid_len,
             .channel = channel,
             .max_connection = 2,
             .authmode = WIFI_AUTH_WPA_WPA2_PSK},
@@ -56,9 +56,6 @@ static void wifi_init_softap(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
-
-    esp_netif_ip_info_t ip_info;
-    esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ip_info);
 }
 
 static void dhcp_set_captiveportal_url(void)
@@ -72,10 +69,9 @@ static void dhcp_set_captiveportal_url(void)
     ESP_LOGI(TAG, "Set up softAP with IP: %s", ip_addr);
 
     // turn the IP into a URI
-    char *captiveportal_uri = (char *)malloc(32 * sizeof(char));
-    assert(captiveportal_uri && "Failed to allocate captiveportal_uri");
-    strcpy(captiveportal_uri, "http://");
-    strcat(captiveportal_uri, ip_addr);
+    static char captiveportal_uri[32];
+    // The DHCP server retains this pointer for the lifetime of the interface.
+    snprintf(captiveportal_uri, sizeof(captiveportal_uri), "http://%s", ip_addr);
 
     // get a handle to configure DHCP with
     esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");

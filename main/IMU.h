@@ -70,5 +70,4 @@ extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal
 #define GYDIR_YAW_MAX (0.02f)
 
 float IMU_roll();
-float IMU_side_acc();
 bool IMU_getZero();

@@ -8,10 +8,6 @@
 
 static const char TAG[] = "icm426xxI2C";
 
-extern esp_err_t icm426xx_init_SPI();
-extern void icm426xx_sleep_SPI();
-extern void icm426xx_get_data_SPI();
-
 #define IMU_ADDR 0x68        // AD0 = GND
 #define ICM42607_WHOAMI 0x60 //
 #define PWR_MGMT0 0x1F       // Power management settings
@@ -30,7 +26,7 @@ extern void icm426xx_get_data_SPI();
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500/dps
 #define GRAVITY 9.80665f                    //
 #define AC_SENSITIVITY (GRAVITY / 16384.0f) // ±2g設定時
-#define I2C_CLOCK_SPD 1200000               // Hz for 1.0MHz
+#define I2C_CLOCK_SPD 1200000               // Hz (1.2 MHz)
 
 static i2c_master_bus_handle_t bus_handle;
 static i2c_master_dev_handle_t dev_handle;
@@ -194,7 +190,7 @@ esp_err_t icm426xx_init_I2C(void)
     ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "GPIO config failed");
 
     // --- Phase 2: 非同期配信用（trans_queue_depth 設定済み）のI2Cバス再生成 ---
-    i2c_master_bus_config_t bus_configas = {
+    i2c_master_bus_config_t async_bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = I2C_NUM_0,
         .sda_io_num = (gpio_num_t)I2C_MASTER_SDA_IO,
@@ -203,7 +199,7 @@ esp_err_t icm426xx_init_I2C(void)
         .flags.enable_internal_pullup = true,
         .trans_queue_depth = 10,
     };
-    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&bus_configas, &bus_handle), TAG, "Phase2 bus init failed");
+    ESP_RETURN_ON_ERROR(i2c_new_master_bus(&async_bus_config, &bus_handle), TAG, "Phase2 bus init failed");
     ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle), TAG, "Phase2 add dev failed");
 
     // コールバックの登録

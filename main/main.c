@@ -80,7 +80,7 @@ void app_main(void)
     printf("PCB version: %d\n", PCBver);
     printf("PROGVER=%d DATAVER=%u SYSID=%s\n", PROGVER, DATAVER, SysID());
     printf("IMU gx=%f gy=%f gz=%f\n", acc.gx, acc.gy, acc.gz);
-    ESP_LOGI(TAG, "OpTime=%lusec\n", saved.op_time_s);
+    ESP_LOGI(TAG, "OpTime=%lus\n", saved.op_time_s);
     showTasks();
 
     lastdone = millis();

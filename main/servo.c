@@ -150,7 +150,6 @@ void init_sweep()
     current_time = 0.0f;
     doSweep = true;
     current_freq = START_FREQ;
-    sweep_phase = 0.0f;
     float total_steps = SWEEP_TIME * sv_freq;
     // K = (END_FREQ / START_FREQ) ^ (1 / total_steps)
     freq_multiplier = powf(END_FREQ / START_FREQ, 1.0f / total_steps);
@@ -160,8 +159,8 @@ void init_sweep()
 }
 
 /**
- * @brief sservo freqごとに呼び出され、スイープsin波の値を返す関数
- * @return float 振幅 -1.0 〜 1.0 のsin波の値
+ * @brief Called once per servo control period to advance the sweep sine wave.
+ * @return Sine-wave value scaled by the configured sweep amplitude.
  * @note 4ms（DT）ごとの計算は掛け算1回のみで等比加速します
  */
 static float get_sweep_sine_value(void)

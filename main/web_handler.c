@@ -166,7 +166,7 @@ static esp_err_t clear_buffer_handler(httpd_req_t *req)
     log_uri(req);
 
     char *p = clear_buffer_data();
-    httpd_resp_set_type(req, "text/plane; charset=UTF-8");
+    httpd_resp_set_type(req, "text/plain; charset=UTF-8");
     httpd_resp_send(req, p, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
@@ -329,14 +329,7 @@ const size_t uri_handlers_count = sizeof(uri_handlers) / sizeof(uri_handlers[0])
 // HTTP Error (404) Handler - Redirects all requests to the root page
 esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err)
 {
+    (void)err;
     ESP_LOGI(TAG, "404 error");
     return root_get_handler(req);
-
-    // httpd_resp_set_status(req, "302 Temporary Redirect");
-    // httpd_resp_set_hdr(req, "Location", "/");
-    // // iOS requires content in the response to detect a captive portal, simply redirecting is not sufficient.
-    // httpd_resp_send(req, "Redirect to the captive portal", HTTPD_RESP_USE_STRLEN);
-
-    // ESP_LOGI(TAG, "Redirecting to root");
-    // return ESP_OK;
 }

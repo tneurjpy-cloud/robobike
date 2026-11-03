@@ -66,10 +66,8 @@ Copyright 2026.10.29  ROBOBIKEJP M.Tanaami
 #define IO_21 21
 
 #define GPIO_TP0 IO_0
-#define GPIO_TP1 IO_1
 #define GPIO_IR_LED IO_1 // IR LED
 #define GPIO_IR_PTR IO_2 // IR photo Transistor
-#define GPIO_TP2 IO_2
 #define LED_GPIO IO_3
 #define GPIO_DRV IO_4
 #define GPIO_STR IO_5
@@ -100,7 +98,7 @@ typedef struct
         struct
         {
             int ver;              // data ver
-            uint32_t op_time_s;   // operation time in minutes
+            uint32_t op_time_s;   // operation time in seconds
             bool isChecked;       //
             float gain_str;       // delta = 0.01
             float gain_str_diff;  //
@@ -161,7 +159,7 @@ typedef enum         // 自動旋回修正用状態定義
 #define LEDHIGH 255
 #define LEDLOW 32
 #define LEDOFF 0
-#define SLEEPINTERVAL (30 * 1000UL)          // n sec to sleep
+#define SLEEPINTERVAL (30 * 1000UL)          // 30 seconds in milliseconds
 #define SLEEP_DURATION_MS (15 * 60 * 1000UL) // 15min to sleep
 #define millis() ((uint32_t)(esp_timer_get_time() / 1000))
 #define waitTaskms(xms) vTaskDelay(pdMS_TO_TICKS(xms))
@@ -192,11 +190,8 @@ extern const httpd_uri_t root;
 extern const httpd_uri_t command;
 extern const httpd_uri_t get_acc;
 extern const httpd_uri_t generate_204;
-extern const httpd_uri_t hotspot;
 extern const httpd_uri_t ncsi;
-extern const httpd_uri_t generate_204;
 extern const httpd_uri_t ota_update;
-extern const httpd_uri_t ota;
 
 extern const ledc_timer_config_t servo_PWM_timer;
 extern ledc_channel_config_t svch_mot;
