@@ -212,12 +212,12 @@ uint32_t get_led_brightness()
 
 // PCB version check. Detect for continuity in the PCB: connected=ver 5
 // do before PWM timer start
-int chk_PCBver()
+void chk_PCBver()
 {
     gpio_config_t io_conf;
     bool IO_8_is_high = false;
 
-    io_conf.pin_bit_mask = (1ULL << IO_8);    // IO_8 サーボ信号検出ポート設定
+    io_conf.pin_bit_mask = (1ULL << IO_8);    //v5以下 IO_8 サーボ信号検出ポート設定
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE; // PULLDOWN
@@ -246,8 +246,6 @@ int chk_PCBver()
         PCBver = 6; // PCB v06
     }
     gpio_set_level(GPIO_STR, 0);
-
-    return PCBver;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

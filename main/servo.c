@@ -12,19 +12,19 @@
 
 LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1 duty可変0-100%)
            s0           s1            s2          s3
-____+============+======_______+____________+____________+=====
+____+============+======_______+____________+______________+=======
         1000us    500us  500us     1000us     1000+375us
 
 GPIO_STR_IN <-- GPIO_STR external interrupt 4ms interval
     cbPulseIn
-____|____________________________________________________|_____
+____|______________________________________________________|_______
     start sync_timer
 
 sync_timer(gptimer)
-CB         cb0          cb1           cb2          cb3
-____+------|-------------|-------------|------------|_____+-----
-    0     900us        1400us        2400us       3400us
-    FIRSTWT  STGINTRVL     STGINTRVL     STGINTRVL
+CB            cb0          cb1           cb2          cb3
+_____________|-------------|-------------|-------------|_________|-
+    0       700us        1700us        2700us       3700us
+      FIRSTWT   STGINTRVL     STGINTRVL    STGINTRVL+
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
@@ -522,13 +522,22 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         {
             PWM_pause_us = 0;
         }
+        //// PLL synchronise to IMU ODR
+        else if (fsync_time_delta < FSYNC_TIME_D_NOMINAL - 5)
+        {
+            PWM_pause_us = PWM_pause_us_NOMINAL - 2; // 375us - 2
+        }
         else if (fsync_time_delta < FSYNC_TIME_D_NOMINAL)
         {
             PWM_pause_us = PWM_pause_us_NOMINAL - 1; // 375us - 1
         }
+        else if (fsync_time_delta > FSYNC_TIME_D_NOMINAL + 5)
+        {
+            PWM_pause_us = PWM_pause_us_NOMINAL + 2; //
+        }
         else
         {
-            PWM_pause_us = PWM_pause_us_NOMINAL + 1; // 375us + 1
+            PWM_pause_us = PWM_pause_us_NOMINAL + 1; //
         }
         ledc_timer_pause(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);
         esp_rom_delay_us(PWM_pause_us);
@@ -557,8 +566,6 @@ static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
 ////////////////////////////////////////////////////////////////////////////
 void servo_init()
 {
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
     pyaw_coeff = &saved.yaw_coeff;
 
     // Create control calculation task

@@ -130,13 +130,13 @@ typedef enum         // 自動旋回修正用状態定義
 } TRunState;
 
 #define STRMAX 90
-#define STR_STOP 40
+#define STR_STOP 35
 #define MOTMAX 60 // MG90D max duty = 90%,21.1kHz @50deg()
 #define MOT_SPEED_BACK (-20)
 #define EX1MAX 60
 #define EX1MIN (-10)
 #define STD_RUN 100
-#define STD_STD_NUT 16 // diff STD. - NUT.
+#define STD_STD_NUT 14 // diff STD. - NUT.
 
 //// R/C servo pulse width making
 #define TIMER_RES_HZ 1000000 // 1us resolution
@@ -267,7 +267,7 @@ void wait_str_angle();
 void set_ex1_angle(float angle, float step); // angle in deg, step: /cycle
 void wait_ex1_angle();
 void savenvs();
-int chk_PCBver();
+void chk_PCBver();
 void showTasks(void);
 const char *cmdID_to_str(TcmdID id);
 void webserver_start(void);

@@ -114,12 +114,6 @@ void icm426xx_get_data_I2C()
 {
     uint32_t timeout = 0;
 
-    if (PCBver >= 6)
-    {
-        icm426xx_get_data_SPI();
-        return;
-    }
-
     while (!i2c_done && timeout < 100)
     { // timeout = 2ms
         esp_rom_delay_us(10);

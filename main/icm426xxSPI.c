@@ -212,7 +212,9 @@ void icm426xx_get_data_SPI()
     acc.gx = raw_16[3] * GY_SENSITIVITY;
     acc.gy = raw_16[4] * GY_SENSITIVITY;
     acc.gz = raw_16[5] * GY_SENSITIVITY;
-    fsync_time_delta = *(uint16_t *)(&raw[12]); // Time from FSYNC to the first sample in us
+    
+    //// Time from FSYNC to "the first sample" in us
+    fsync_time_delta = *(uint16_t *)(&raw[12]);
 }
 
 esp_err_t icm426xx_init_SPI()
