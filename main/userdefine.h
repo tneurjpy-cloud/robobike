@@ -65,7 +65,6 @@ Copyright 2026.10.29  ROBOBIKEJP M.Tanaami
 #define IO_20 20
 #define IO_21 21
 
-#define GPIO_TP0 IO_0
 #define GPIO_IR_LED IO_1 // IR LED
 #define GPIO_IR_PTR IO_2 // IR photo Transistor
 #define LED_GPIO IO_3

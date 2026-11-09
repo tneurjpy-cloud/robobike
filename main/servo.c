@@ -2,29 +2,29 @@
     servo.c
 
 サーボ制御用タイマーchart (4ステージ・4000usフレーム・全サーボ相乗り版)
-2026.10.25 chg. for PCB v6
+2026.11.04 chg. for PCB v6
 
     == : H level
     __ : L level or stop
-    -- : count up running, waiting
+    -- : count up running, pause
     +  : start
     |  : fire interrupt
 
 LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1 duty可変0-100%)
-           s0           s1            s2          s3
-____+============+======_______+____________+______________+=======
-        1000us    500us  500us     1000us     1000+375us
-
-GPIO_STR_IN <-- GPIO_STR external interrupt 4ms interval
-    cbPulseIn
-____|______________________________________________________|_______
-    start sync_timer
+STRsv(FSYNC) s0        s1            s2        s3  pause
+____+============+======_______+____________+_________---__+=======
+        1000us    500us  500us     1000us       1000+375us
+GPIO_STR-->FSYNC external edge input to IMU
 
 sync_timer(gptimer)
-CB            cb0          cb1           cb2          cb3
-_____________|-------------|-------------|-------------|_________|-
-    0       700us        1700us        2700us       3700us
+CB         cb0           cb1           cb2           cb3
+____|-------|-------------|-------------|-------------|_________|-
+    0      700us        1700us        2700us        3700us
       FIRSTWT   STGINTRVL     STGINTRVL    STGINTRVL+
+
+    STR servo(FSYNC)
+____|______________________________________________________|_______
+    start sync_timer
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
@@ -398,7 +398,7 @@ static void gyroServiceLoop()
     float w_roll_dev, str_dev, str_dev_diff;
     float w_roll_cmd;
 
-    gpio_set_level(GPIO_TP0, 1); // 20~60us to do
+    gpio_set_level(IO_0, 1); // 20~60us to do
     IMU_startRead();
     IMU_getData();
     if (auto_en)
@@ -424,7 +424,7 @@ static void gyroServiceLoop()
             saved.acc_offset = acc_offset;
     }
 
-    gpio_set_level(GPIO_TP0, 0);
+    gpio_set_level(IO_0, 0);
 }
 
 // Wakeup on sync_timer_isr/cb0, do str. mot. servo output
@@ -443,7 +443,7 @@ static void ControlTask(void *pvParameters)
 
         gyroServiceLoop(); // 最速でIMU読み込み（間に合えば最新値に上書きラッチされる）
 
-        do_str_cmd_calc();  // auto circling calc
+        do_str_cmd_calc();              // auto circling calc
         gpio_set_level(GPIO_IR_LED, 0); // IR LED OFF
 
         do_mot_out();       // 後輪回転
@@ -518,12 +518,12 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         sync_step = cb0;
         gptimer_stop(timer); // 自走終了 外部割込み待ちへ
 
+        //// PLL synchronise to IMU ODR
         extern volatile uint16_t fsync_time_delta;
         if (PCBver <= 5)
         {
             PWM_pause_us = 0;
         }
-        //// PLL synchronise to IMU ODR
         else if (fsync_time_delta < FSYNC_TIME_D_NOMINAL - 5)
         {
             PWM_pause_us = PWM_pause_us_NOMINAL - 2; // 375us - 2
@@ -532,14 +532,19 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         {
             PWM_pause_us = PWM_pause_us_NOMINAL - 1; // 375us - 1
         }
-        else if (fsync_time_delta > FSYNC_TIME_D_NOMINAL + 5)
+        else if (fsync_time_delta < FSYNC_TIME_D_NOMINAL + 1)
         {
-            PWM_pause_us = PWM_pause_us_NOMINAL + 2; //
+            PWM_pause_us = PWM_pause_us_NOMINAL; // 375us
+        }
+        else if (fsync_time_delta < FSYNC_TIME_D_NOMINAL + 6)
+        {
+            PWM_pause_us = PWM_pause_us_NOMINAL + 1; // 375us + 1
         }
         else
         {
-            PWM_pause_us = PWM_pause_us_NOMINAL + 1; //
+            PWM_pause_us = PWM_pause_us_NOMINAL + 2; // 375us + 2
         }
+        // LEDC pause time
         ledc_timer_pause(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);
         esp_rom_delay_us(PWM_pause_us);
         ledc_timer_resume(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);

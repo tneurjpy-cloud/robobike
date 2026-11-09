@@ -3,7 +3,7 @@ https://github.com/tneurjpy-cloud/robobike
 | ----------------- | -------- |
 
 ROBOBIKE: Autonomous Self-Balancing Bicycle Robot  
-Copyright 2026.06.05    Masayuki Tanaami      Mobile-Bot Lab. Japan  
+Copyright 2026.11.05    Masayuki Tanaami      ROBOBIKEJP    Japan  
 
 ESP-IDF components and tools paths depend on installation location  
 
@@ -82,7 +82,7 @@ Please install the ESP-IDF extension in VS-Code before building this project.
 ```text
 Date        CODE    DATA    Description
 ------------------------------------------------------------------------------------------------
-2026.10.19  1043       6    Add: Check PCBA ver 06
+2026.11.04  1043       6    Add: Check PCBA ver 06, use SPI
 2026.09.27  1042       6    Add: Test mode on every reset
 2026.09.13  1041       6    Dbg: Fix mobile file selection issue on OTA
 2026.09.11  1040       6    Dbg: Stop servo PWM during OTA
