@@ -82,6 +82,7 @@ Please install the ESP-IDF extension in VS-Code before building this project.
 ```text
 Date        CODE    DATA    Description
 ------------------------------------------------------------------------------------------------
+2026.11.10  1044       6    Chg: Fix the drift on starting, Speed-adaptive gain
 2026.11.04  1043       6    Add: Check PCBA ver 06, use SPI
 2026.09.27  1042       6    Add: Test mode on every reset
 2026.09.13  1041       6    Dbg: Fix mobile file selection issue on OTA
@@ -99,7 +100,7 @@ Date        CODE    DATA    Description
                             Chg: esp-idf v5.4.1-->> v6.0.1
 2026.04.07  1028    1022    Add: WiFi AP Ch. randomize
 2026.03.31  1027    1021    Add: BACK cmd, SV EN Cont. heapless buffer
-2026.03.20  1025    1021    Mov: GPIO definitions from servo.c to userdefine.h
+2026.03.20  1025    1021    Mov: GPIO definitions from servo.c to project.h
 2026.03.01  1024    1021    Add: IMU data API, 
                             Dbg: Calibration
 2026.02.09  1023    1021    Add: Auto circling On/Off, restore SLEEP function

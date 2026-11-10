@@ -1,4 +1,4 @@
-#include "userdefine.h"
+#include "project.h"
 
 // servo signals
 const ledc_timer_config_t servo_PWM_timer = {
@@ -8,7 +8,7 @@ const ledc_timer_config_t servo_PWM_timer = {
     .freq_hz = 1000, // 250Hz * 4 = 1000Hz (1ステージ1000us)
     .clk_cfg = LEDC_AUTO_CLK};
 
-ledc_channel_config_t svch_mot = {
+const ledc_channel_config_t svch_mot = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
     .channel = LEDC_CHANNEL_0,
     .timer_sel = LEDC_TIMER_1,
@@ -17,7 +17,7 @@ ledc_channel_config_t svch_mot = {
     .duty = PWM_DUTY_100, // 初期状態のs0は100%（H開始）
     .hpoint = 0};
 
-ledc_channel_config_t svch_str = {
+const ledc_channel_config_t svch_str = {
     .speed_mode = LEDC_LOW_SPEED_MODE,
     .channel = LEDC_CHANNEL_1,
     .timer_sel = LEDC_TIMER_1,
@@ -36,14 +36,14 @@ ledc_channel_config_t svch_ex1 = {
     .hpoint = 0};
 
 // LED
-ledc_timer_config_t ledc_timer = {
+const ledc_timer_config_t ledc_timer = {
     .speed_mode = LED_MODE,
     .timer_num = LED_TIMER,
     .duty_resolution = LED_RESOLUTION,
     .freq_hz = LED_FREQUENCY,
     .clk_cfg = LEDC_AUTO_CLK};
 
-ledc_channel_config_t ledc_channel = {
+const ledc_channel_config_t ledc_channel = {
     .gpio_num = LED_GPIO,
     .speed_mode = LED_MODE,
     .channel = LED_CHANNEL,

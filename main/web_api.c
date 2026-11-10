@@ -1,4 +1,4 @@
-#include "userdefine.h"
+#include "project.h"
 
 static const char *TAG = "web_api";
 
@@ -215,7 +215,8 @@ static void cmdProcTask(void *pvParameters)
             break;
 
         case bt_F:
-            if (mot_out != 0.0f) // 走行中
+            rollgain_setup();
+            if (mot_out != 0.0f) // running
             {
                 set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / sv_freq); // ゆっくりと戻す
             }
@@ -223,12 +224,13 @@ static void cmdProcTask(void *pvParameters)
             {    // down the stand slowly, motor on, up the stand
                 auto_disable();
                 set_led_brightness(LEDHIGH);
-                set_str_cmd(0.0f, 0.0f);
                 set_ex1_angle((float)((STD_STD_NUT + saved.ang_std_nut) + saved.ang_std_nut * 3) / 4.0f, 0.1f);
                 wait_ex1_angle();
+                set_str_cmd(-10.0f, 0.0f); // cancel leaning to the left
                 set_ex1_angle(saved.ang_std_nut, 0.02f);
                 wait_ex1_angle();
                 set_mot_duty(saved.mot_spd, 50.f);
+                set_str_cmd(0.0f, 0.0f);
                 auto_enable();
                 set_ex1_angle(STD_RUN, 1.f);
             }
@@ -388,6 +390,8 @@ esp_err_t put_command(control_msg_t *msg)
     case bt_A_Up_0:
         if (saved.mot_spd < MOTMAX)
             saved.mot_spd++;
+        rollgain_setup();
+
         if (mot_out > 0) // 走行中
         {
             set_mot_duty(saved.mot_spd, 0.0f);
@@ -397,6 +401,8 @@ esp_err_t put_command(control_msg_t *msg)
     case bt_A_Dn_0:
         if (saved.mot_spd > 0)
             saved.mot_spd--;
+        rollgain_setup();
+        
         if (mot_out > 0) // 走行中
         {
             set_mot_duty(saved.mot_spd, 0.0f);

@@ -1,12 +1,12 @@
 /*////////////////////////////////////////////////////////////////////////////////
-userdefine.h        ROBOBIKE project
+project.h        ROBOBIKE project
 
-Copyright 2026.10.29  ROBOBIKEJP M.Tanaami
+Copyright 2026.11.10  ROBOBIKEJP M.Tanaami
 ////////////////////////////////////////////////////////////////////////////////*/
 
 #pragma once
 
-#define PROGVER 1043 // version for program
+#define PROGVER 1044 // version for program
 #define DATAVER 6    // version for saved data in NVS
 
 #include <stdint.h>
@@ -133,7 +133,7 @@ typedef enum         // 自動旋回修正用状態定義
 #define MOT_SPEED_BACK (-20)
 #define EX1MAX 60
 #define EX1MIN (-10)
-#define STD_RUN 100
+#define STD_RUN 110
 #define STD_STD_NUT 14 // diff STD. - NUT.
 
 //// R/C servo pulse width making
@@ -193,12 +193,12 @@ extern const httpd_uri_t ncsi;
 extern const httpd_uri_t ota_update;
 
 extern const ledc_timer_config_t servo_PWM_timer;
-extern ledc_channel_config_t svch_mot;
-extern ledc_channel_config_t svch_str;
+extern const ledc_channel_config_t svch_mot;
+extern const ledc_channel_config_t svch_str;
 extern ledc_channel_config_t svch_ex1;
 
-extern ledc_timer_config_t ledc_timer;
-extern ledc_channel_config_t ledc_channel;
+extern const ledc_timer_config_t ledc_timer;
+extern const ledc_channel_config_t ledc_channel;
 
 // control command
 #define COMMAND_LIST(V) \
@@ -272,6 +272,7 @@ uint32_t get_led_brightness();
 void deepSleep(uint32_t ms);
 void auto_disable(void);
 void auto_enable(void);
+void rollgain_setup();
 void waitms(uint32_t t);
 bool isNms(uint32_t *lastNms, uint32_t Nms);
 void userdeviceinit(void);

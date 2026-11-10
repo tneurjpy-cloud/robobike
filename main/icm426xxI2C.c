@@ -4,7 +4,7 @@
     ICM-40608   https://www.lcsc.com/datasheet/C2833762.pdf
     ICM-42670   https://www.lcsc.com/datasheet/C3288646.pdf
 */
-#include "userdefine.h"
+#include "project.h"
 
 static const char TAG[] = "icm426xxI2C";
 

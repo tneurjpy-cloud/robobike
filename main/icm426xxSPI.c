@@ -1,4 +1,4 @@
-#include "userdefine.h"
+#include "project.h"
 
 //// WHO_AM_I = 0x63 ////
 static const char TAG[] = "icm426xx_spi";
@@ -167,19 +167,6 @@ void icm426xx_start_read_SPI()
 {
 }
 
-// Initialize timestamp
-static void init_FSYNC()
-{
-    // Step 3: Configure FSYNC / timestamp function (MREG1: TMST_CONFIG1 = 0x07)
-    // Bit 0: TMST_EN = 1 (Enable timestamp)
-    // Bit 1: TMST_FSYNC_EN = 1 (Enable FSYNC timestamp)
-    // Bit 2: TMST_DELTA_EN = 1 (Enable timestamp delta)
-    icm426xx_write_mreg1_SPI(0x00, 0x07);
-
-    icm426xx_write_reg_SPI(REG_PWR_MGMT0, 0x0F);    // Power ON (Accel + Gyro ON)
-    icm426xx_write_reg_SPI(REG_INTF_CONFIG0, 0x20); // Little Endian format
-}
-
 // Burst read 14 bytes: Accel & Gyro (12 bytes) + FSYNC time delta (2 bytes)
 void icm426xx_get_data_SPI()
 {
@@ -217,13 +204,26 @@ void icm426xx_get_data_SPI()
     fsync_time_delta = *(uint16_t *)(&raw[12]);
 }
 
+// Initialize timestamp
+static void init_FSYNC()
+{
+    // Step 3: Configure FSYNC / timestamp function (MREG1: TMST_CONFIG1 = 0x07)
+    // Bit 0: TMST_EN = 1 (Enable timestamp)
+    // Bit 1: TMST_FSYNC_EN = 1 (Enable FSYNC timestamp)
+    // Bit 2: TMST_DELTA_EN = 1 (Enable timestamp delta)
+    icm426xx_write_mreg1_SPI(0x00, 0x07);
+
+    icm426xx_write_reg_SPI(REG_PWR_MGMT0, 0x0F);    // Power ON (Accel + Gyro ON)
+    icm426xx_write_reg_SPI(REG_INTF_CONFIG0, 0x20); // Little Endian format
+}
+
 esp_err_t icm426xx_init_SPI()
 {
     IMU_sleep = icm426xx_sleep_SPI;
     IMU_startRead = icm426xx_start_read_SPI;
     IMU_getData = icm426xx_get_data_SPI;
 
-    static spi_bus_config_t bus_cfg = {
+    const spi_bus_config_t bus_cfg = {
         .sclk_io_num = PIN_SCLK,
         .mosi_io_num = PIN_SDA,
         .miso_io_num = -1,
@@ -232,7 +232,7 @@ esp_err_t icm426xx_init_SPI()
         .max_transfer_sz = 32};
 
     // command_bits = 8 を有効にし、.cmdフェーズを利用する設定
-    static spi_device_interface_config_t dev_cfg = {
+    const spi_device_interface_config_t dev_cfg = {
         .clock_speed_hz = 10 * 1000 * 1000,
         .mode = 0,
         .spics_io_num = PIN_CS,
@@ -260,7 +260,7 @@ esp_err_t icm426xx_init_SPI()
 
     init_FSYNC();
     ESP_LOGI(TAG, "ICM-42670-L 3-Wire SPI Initialized with FSYNC Timestamp.");
-    init_FSYNC(); // OMJINAI for PON RESET
+    init_FSYNC(); // OMAJINAI for PWON RESET
     read_attr();
 
     return ESP_OK;

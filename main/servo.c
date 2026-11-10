@@ -10,7 +10,9 @@
     +  : start
     |  : fire interrupt
 
-LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1 duty可変0-100%)
+LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (duty可変0-100%)
+ex1sv      s0          s1            s2        s3  pause
+____+____________|=============+======______+_________---__+=======
 STRsv(FSYNC) s0        s1            s2        s3  pause
 ____|============+======_______+____________+_________---__+=======
         1000us    500us  500us     1000us       1000+375us
@@ -48,7 +50,7 @@ cb3: (gptimer countup interrupt)
 
 //////////////////////////////////////////////////////////////////////////*/
 
-#include "userdefine.h"
+#include "project.h"
 
 static const char TAG[] = "servo";
 
@@ -67,6 +69,7 @@ float ex1_out;  // deg
 float ex1_step; // deg/cycle
 
 TSave saved;
+float gain_roll_using;
 float *pyaw_coeff;
 volatile bool stopServo = false;
 
@@ -76,15 +79,15 @@ const TSave savedefault = {
     .isChecked = false,                                    // isChecked
     .gain_str = 0.030f,                                    // gain_str;
     .gain_str_diff = 0.030f,                               // gain_str_diff
-    .gain_w_roll = 12.0f,                                  // gain_w_roll;
+    .gain_w_roll = 14.0f,                                  // gain_w_roll;
     .acc_offset = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},    // acc_offset
     .acc_dir = {0.0f, 0.0f, 0.0f, 0.0175f, 0.9996f, 0.0f}, // acc_dir
     .str_diff_alph = 0.040f,                               // str_diff_alph
     .str0 = 0,                                             // (int) steering angle neutral R= +deg
-    .mot_spd = 60,                                         // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
+    .mot_spd = 50,                                         // (int) motor speed 0-99 (88.5RPM/4.0V, 57.9RPM/SPD=10)
     .ang_std_nut = 20,                                     // (int) stand for start
     .run_coeff = 0.0f,                                     // run-speed feedback coefficient
-    .yaw_coeff = 0.011f,                                   // yaw‑rate feedback coefficient
+    .yaw_coeff = 0.010f,                                   // yaw‑rate feedback coefficient
     .str_turn = 40,                                        // (int) str_turn deg
     .str_cmd_speed = 30,                                   // (int) str_cmd_speed deg/sec
     .autoCircling = false,                                 // (bool) autoCircling
@@ -138,6 +141,34 @@ float current_freq = START_FREQ;
 float freq_multiplier = 1.0f;
 float swp_sg = 0.0f;
 float swp_ampletude;
+
+///////////////////////////////////////////////////////////////////////////////////
+// Float interpolation
+float finterp(const float x, const float xt[], const float yt[], const int n)
+{
+    int i;
+    float d0;
+
+    if (x <= xt[0])
+    {
+        return yt[0];
+    }
+    else
+    {
+        i = 1;
+        while (x > xt[i] && i < (n - 1))
+            i++;
+        d0 = xt[i] - xt[i - 1];
+        if (d0 <= 0)
+        {
+            return yt[i - 1];
+        }
+        else
+        {
+            return ((yt[i] - yt[i - 1]) * (x - xt[i - 1])) / d0 + yt[i - 1];
+        }
+    }
+}
 
 //////////////////////////////////////////////////////////////////////////
 void init_sweep()
@@ -226,6 +257,10 @@ void chklimit(float *x, float max)
 void set_ex1_angle(float angle, float step)
 {
     ex1_step = step;
+    if (PCBver >= 6)
+    {
+        angle -= 20.0f; // side stand
+    }
     ex1_cmd = angle;
 }
 
@@ -387,6 +422,26 @@ void wait_str_angle()
     ESP_LOGI(TAG, "wait str end");
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+/*
+  multiple for gain_roll_using
+    | *      *          1.75
+    |               *   1.0
+    |
+    0-------20------50--speed
+*/
+static const float spd_g_tbl_x[] =
+    {20.0f, 50.0f};
+static const float spd_g_tbl_y[] =
+    {1.75f, 1.0f};
+
+void rollgain_setup()
+{
+    gain_roll_using = saved.gain_w_roll *
+                       finterp(saved.mot_spd, spd_g_tbl_x, spd_g_tbl_y,
+                               sizeof(spd_g_tbl_y) / sizeof(spd_g_tbl_y[0]));
+}
+
 static void gyroServiceLoop()
 {
     static float last_str_dev = 0.0f;
@@ -404,10 +459,10 @@ static void gyroServiceLoop()
         str_diff_lps = (1.0f - saved.str_diff_alph) * str_diff_lps + saved.str_diff_alph * str_dev_diff;
         w_roll_cmd = str_dev * saved.gain_str + str_diff_lps * saved.gain_str_diff;
         w_roll_dev = w_roll_cmd - IMU_roll();
-        str_out -= w_roll_dev * saved.gain_w_roll * sv_term;
-        last_str_dev = str_dev;
+        str_out -= w_roll_dev * gain_roll_using * sv_term; // Speed-adaptive gain
         chklimit(&str_out, STRMAX);
         str_pwm_out(str_out);
+        last_str_dev = str_dev;
     }
     else
     { // servo responce sweep test
@@ -550,7 +605,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
     return res;
 }
 
-// PulseIn: サーボ信号検出外部割り込みハンドラ s0開始=GPIO_STRの立ち上がりを検知
+// PulseIn: サーボ信号検出割り込みハンドラ s0開始=GPIO_STRの立ち上がりを検知
 static gptimer_alarm_config_t first_alarm;
 static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
 {
@@ -590,13 +645,13 @@ void servo_init()
     first_alarm.flags.auto_reload_on_alarm = false;
 
     // gptimer setup
-    gptimer_config_t timer_config = {
+    const gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT,
         .direction = GPTIMER_COUNT_UP,
         .resolution_hz = TIMER_RES_HZ, // 1MHz= 1us resolution
     };
     gptimer_new_timer(&timer_config, &sync_timer);
-    gptimer_event_callbacks_t cbs = {
+    const gptimer_event_callbacks_t cbs = {
         .on_alarm = sync_timer_isr_cb,
     };
     gptimer_register_event_callbacks(sync_timer, &cbs, NULL);
