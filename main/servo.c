@@ -12,7 +12,7 @@
 
 LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (s1 duty可変0-100%)
 STRsv(FSYNC) s0        s1            s2        s3  pause
-____+============+======_______+____________+_________---__+=======
+____|============+======_______+____________+_________---__+=======
         1000us    500us  500us     1000us       1000+375us
 GPIO_STR-->FSYNC external edge input to IMU
 
@@ -21,10 +21,6 @@ CB         cb0           cb1           cb2           cb3
 ____|-------|-------------|-------------|-------------|_________|-
     0      700us        1700us        2700us        3700us
       FIRSTWT   STGINTRVL     STGINTRVL    STGINTRVL+
-
-    STR servo(FSYNC)
-____|______________________________________________________|_______
-    start sync_timer
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
