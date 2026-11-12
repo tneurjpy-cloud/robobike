@@ -120,11 +120,11 @@ typedef struct
     uint32_t CRC; //
 } TSave;
 
-typedef enum         // 自動旋回修正用状態定義
+typedef enum         // State definitions for automatic turn correction
 {                    //
-    rsOuter,         // 外側走行、定常旋回
-    rsInner_Correct, // 内側走行、修正動作
-    rsInner_Stable   // 内側走行、定常旋回
+    rsOuter,         // Riding outside the circle; steady turn
+    rsInner_Correct, // Riding inside the circle; applying correction
+    rsInner_Stable   // Riding inside the circle; steady turn
 } TRunState;
 
 #define STRMAX 90
@@ -139,7 +139,7 @@ typedef enum         // 自動旋回修正用状態定義
 //// R/C servo pulse width making
 #define TIMER_RES_HZ 1000000 // 1us resolution
 #define PWM_DUTY_0 0         //
-#define PWM_DUTY_100 4096    // 12bit完全100%固定値
+#define PWM_DUTY_100 4096    // Fixed value for 100% duty at 12-bit resolution
 #define PWM_STAGE_LEN 1000   // us
 #define PWM_MAXLEN 1990      // us
 #define PWM_MINLEN 1010      // us
@@ -149,8 +149,8 @@ typedef enum         // 自動旋回修正用状態定義
 #define LED_CHANNEL LEDC_CHANNEL_3
 #define LED_TIMER LEDC_TIMER_2
 #define LED_MODE LEDC_LOW_SPEED_MODE
-#define LED_FREQUENCY 450               // PWM周波数（Hz）
-#define LED_RESOLUTION LEDC_TIMER_8_BIT // 0〜255の輝度制御
+#define LED_FREQUENCY 450               // PWM frequency (Hz)
+#define LED_RESOLUTION LEDC_TIMER_8_BIT // Brightness control from 0 to 255
 
 #define RING_BUF_SIZE (250 * 5)  // for data monitor
 #define CTL_DATA_BUFSIZE (65536) //

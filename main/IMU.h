@@ -13,7 +13,6 @@ extern Tvector6d acc_offset; // Offsets of IMU data
 
 extern volatile bool gy_auto_cal_done;
 extern float *pyaw_coeff;
-extern uint32_t PWM_delay_us; // PLL for synchronizing PWM timer to IMU ODR cycle
 
 esp_err_t IMU_init();
 extern void (*IMU_sleep)(); // change functions for PCB version
@@ -22,7 +21,6 @@ extern void (*IMU_getData)();
 extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal frame period
 
 ////////////////////////////////////////////////
-#define SPI_SWAP_16(val) __builtin_bswap16(val)
 #define IMU_ODR_TERM 625   // us 1/ODR=625us, 1600Hz=625us
 
 ////////////////////////////////////////////////////////////////
@@ -49,10 +47,6 @@ extern uint32_t sv_freq; // [Hz] Servo control calculation period = Servo signal
 #define ACC_Y(p) (p->z)  // right
 #define ACC_Z(p) (-p->x) // down
 
-// --- Calculation element mappings below ---
-#define GY_YAW_ELM gx
-#define GY_ROLL_ELM gy
-#define GY_PITCH_ELM gz
 #define LATERAL_G (acc.z)
 ////////////////////////////////////////////////////////////////
 

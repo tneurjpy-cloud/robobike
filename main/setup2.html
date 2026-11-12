@@ -135,7 +135,7 @@
     <!-- Load default -->
     <div id="default-loading-dialog" style="
         display: none;
-        position: fixed;   /* ← これを追加 */
+        position: fixed;   /* Added this property. */
         top: 30%;
         left: 50%;
         transform: translateX(-50%);
@@ -227,7 +227,7 @@
 
         function toggleIR() {
             const isOn = document.getElementById('ir_checkbox').checked;
-            // ここも名前を渡せば sendCommand 側で数字に変換されます
+            // Passing the name here lets sendCommand convert it to a number.
             const cmdName = isOn ? 'IR_ON' : 'IR_OFF';
             sendCommand(cmdName);
         }
@@ -257,7 +257,7 @@
                 document.getElementById('ir_checkbox').checked = parseInt(data[CSV_IDX.AUTO_CIRCLING]) === 1;
         }
 
-        // 名前を受け取り、CMD_IDで数字に変換して送信する関数
+        // Accept a name, convert it to a number with CMD_ID, and send it.
         function sendCommand(buttonName) {
             const id = CMD_ID[buttonName];
 
@@ -266,7 +266,7 @@
                 return;
             }
 
-            fetch(`/command?button=${id}`) // 数字を送信
+            fetch(`/command?button=${id}`) // Send the numeric ID.
                 .then(response => response.text())
                 .then(csvText => {
                     const dataArray = csvText.split(',').map(item => item.trim());

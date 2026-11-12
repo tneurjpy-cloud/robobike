@@ -1,7 +1,7 @@
 /*//////////////////////////////////////////////////////////////////////////
     servo.c
 
-サーボ制御用タイマーchart (4ステージ・4000usフレーム・全サーボ相乗り版)
+Servo control timer chart (4 stages, 4000-us frame, shared by all servos)
 2026.11.04 chg. for PCB v6
 
     == : H level
@@ -10,7 +10,7 @@
     +  : start
     |  : fire interrupt
 
-LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (duty可変0-100%)
+LEDC_CHANNEL_1, 0, 2 --> GPIO_STR, DRV, EX1 (variable duty from 0% to 100%)
 ex1sv      s0          s1            s2        s3  pause
 ____+____________|=============+======______+_________---__+=======
 STRsv(FSYNC) s0        s1            s2        s3  pause
@@ -26,27 +26,27 @@ ____|-------|-------------|-------------|-------------|_________|-
 
 CallBackFunctions
 cbStrIn: (GPIO external interrupt)
-  FIRSTWTus後にcb0を起動するようsync_timerを開始
+  Start sync_timer to trigger cb0 after FIRSTWT us.
 
 cb0: (gptimer countup interrupt)
-  ControlTask起床
-  IMUのデータ取り込みを行い、全サーボの計算、
-  str,mot s1のduty=0-100% を書き出し
-  stdサーボのs0のduty=100%を書き出し
-  1000us後のtimer割り込みをスタート
+  Wake ControlTask.
+  Read IMU data and calculate outputs for all servos.
+  Write str and mot s1 duty (0-100%).
+  Write std servo s0 duty (100%).
+  Start the timer interrupt after 1000 us.
 
 cb1: (gptimer countup interrupt)
-  std s1のduty=0-100% を書き出し
-  str,motサーボのs2のduty=0%を書き出し
-  1000us後のtimer割り込みをスタート
+  Write std s1 duty (0-100%).
+  Write str and mot servo s2 duty (0%).
+  Start the timer interrupt after 1000 us.
 
 cb2: (gptimer countup interrupt)
-  stdサーボのs2のduty=0%を書き出し
-  1000us後のtimer割り込みをスタート
+  Write std servo s2 duty (0%).
+  Start the timer interrupt after 1000 us.
 
 cb3: (gptimer countup interrupt)
-  str,motサーボのs0のduty=100%を書き出し
-  sync_timerは停止
+  Write str and mot servo s0 duty (100%).
+  Stop sync_timer.
 
 //////////////////////////////////////////////////////////////////////////*/
 
@@ -116,21 +116,21 @@ static volatile TSyncCBStep sync_step = cb0;
 static gptimer_handle_t sync_timer;
 static TaskHandle_t xControlTaskHandle;
 
-// タスクが計算した std（ex1）のs2用可変Dutyを一時保持するバッファ変数
+// Buffer the variable s2 duty for std (ex1), calculated by the task.
 static volatile uint32_t duty_ex1_s2 = 0;
 
-// ★遅刻時の2000usパルス化を防ぐための、前回計算値保持用変数
-uint32_t duty_str_prev = 2048;        // 初期値ニュートラル(1500us相当)
-static uint32_t duty_mot_prev = 2048; // 初期値ニュートラル(1500us相当)
+// Preserve the previous values to prevent a 2000-us pulse if the task is late.
+uint32_t duty_str_prev = 2048;        // Initial neutral value (equivalent to 1500 us).
+static uint32_t duty_mot_prev = 2048; // Initial neutral value (equivalent to 1500 us).
 extern void icm426xx_discard_data_SPI();
 
 #include <math.h>
 
 // for sin wave sweep ////////////////////////////////////////////////////
-#define DT() (float)(1.0f / sv_freq) // サンプリング周期 (ms)
-#define START_FREQ 0.3f              // 開始周波数 (Hz)
-#define END_FREQ 40.0f               // 終了周波数 (Hz)
-#define SWEEP_TIME 30.0f             // スイープ時間
+#define DT() (float)(1.0f / sv_freq) // Sampling period (ms)
+#define START_FREQ 0.3f              // Start frequency (Hz)
+#define END_FREQ 40.0f               // End frequency (Hz)
+#define SWEEP_TIME 30.0f             // Sweep duration
 #define TWO_PI 6.2831853f            // 2pai rad
 #define SWEEP_W 5.0f                 // sweep width(deg)
 
@@ -188,7 +188,7 @@ void init_sweep()
 /**
  * @brief Called once per servo control period to advance the sweep sine wave.
  * @return Sine-wave value scaled by the configured sweep amplitude.
- * @note 4ms（DT）ごとの計算は掛け算1回のみで等比加速します
+ * @note The 4-ms (DT) update uses only one multiplication for geometric frequency progression.
  */
 static float get_sweep_sine_value(void)
 {
@@ -213,7 +213,7 @@ static float get_sweep_sine_value(void)
     }
     else
     {
-        current_freq = END_FREQ; // 上限ホールド
+        current_freq = END_FREQ; // Hold at the upper limit.
     }
 
     current_time += sv_term;
@@ -486,21 +486,21 @@ static void ControlTask(void *pvParameters)
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY); // wait for servo pulse timing
 
         gpio_set_level(GPIO_IR_LED, 1); // IR LED ON
-        // 通信で遅れる可能性にかんがみ、前回値を保険として先出ししておく
+        // Preload the previous values in case communication delays the update.
         ledc_set_duty(LED_MODE, svch_str.channel, duty_str_prev);
         ledc_update_duty(LED_MODE, svch_str.channel);
         ledc_set_duty(LED_MODE, svch_mot.channel, duty_mot_prev);
         ledc_update_duty(LED_MODE, svch_mot.channel);
 
-        gyroServiceLoop(); // 最速でIMU読み込み（間に合えば最新値に上書きラッチされる）
+        gyroServiceLoop(); // Read the IMU as early as possible; latch newer data if available in time.
 
         do_str_cmd_calc();              // auto circling calc
         gpio_set_level(GPIO_IR_LED, 0); // IR LED OFF
 
-        do_mot_out();       // 後輪回転
-        do_ex1_out();       // サイドスタンド
-        str_easing();       // ステア目標値をゆっくりと変化させる
-        put_control_data(); // データロガー
+        do_mot_out();       // Rear wheel drive
+        do_ex1_out();       // Side stand
+        str_easing();       // Gradually change the steering target.
+        put_control_data(); // Data logging
     }
 }
 
@@ -567,7 +567,7 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         ledc_set_duty(LED_MODE, svch_ex1.channel, PWM_DUTY_0);
         ledc_update_duty(LED_MODE, svch_ex1.channel);
         sync_step = cb0;
-        gptimer_stop(timer); // 自走終了 外部割込み待ちへ
+        gptimer_stop(timer); // Stop the timer and wait for an external interrupt.
 
         //// PLL synchronise to IMU ODR
         extern volatile uint16_t fsync_time_delta;
@@ -605,11 +605,11 @@ static bool IRAM_ATTR sync_timer_isr_cb(
     return res;
 }
 
-// PulseIn: サーボ信号検出割り込みハンドラ s0開始=GPIO_STRの立ち上がりを検知
+// PulseIn: Servo signal detection ISR; detect the GPIO_STR rising edge at the start of s0.
 static gptimer_alarm_config_t first_alarm;
 static void IRAM_ATTR gpio_PulseIn_isr_handler(void *arg)
 {
-    // 外部割込み待ちフェーズの時だけ反応
+    // Respond only while waiting for an external interrupt.
     if (sync_step != cb0)
     {
         return;
@@ -637,7 +637,7 @@ void servo_init()
     else
     {                                   // PCB ver. >= 6 IMU = SPI, GPIO_FSYNC
         firstDelay_us = 700;            //
-        sv_freq = 228;                  // 4ms周期でIMUのODR=228Hzに同期
+        sv_freq = 228;                  // Synchronize the 4-ms cycle with the IMU ODR of 228 Hz.
         svch_ex1.gpio_num = GPIO_NUM_6; // PCB v06 or later;
     }
     sv_term = 1.0f / (float)sv_freq;

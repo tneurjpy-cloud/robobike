@@ -25,7 +25,7 @@ static const char TAG[] = "icm426xxI2C";
 
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500/dps
 #define GRAVITY 9.80665f                    //
-#define AC_SENSITIVITY (GRAVITY / 16384.0f) // ±2g設定時
+#define AC_SENSITIVITY (GRAVITY / 16384.0f) // When configured for ±2 g.
 #define I2C_CLOCK_SPD 1200000               // Hz (1.2 MHz)
 
 static i2c_master_bus_handle_t bus_handle;
@@ -132,7 +132,7 @@ esp_err_t icm426xx_init_I2C(void)
     IMU_startRead = icm426xx_start_read_I2C;
     IMU_getData = icm426xx_get_data_I2C;
 
-    // --- Phase 1: 初期同期書き込み用のI2Cバス生成 ---
+    // --- Phase 1: Create the I2C bus for initial synchronous writes. ---
     i2c_master_bus_config_t bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = I2C_NUM_0,
@@ -150,7 +150,7 @@ esp_err_t icm426xx_init_I2C(void)
     };
     ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle), TAG, "Phase1 add dev failed");
 
-    // --- IMUレジスタ設定 ---
+    // --- Configure IMU registers. ---
     cfg = 0x45; // GYRO_UI_FS_SEL=500dps(0100), GYRO_ODR=1.6KHz(0101)
     ESP_RETURN_ON_ERROR(i2c_write(GYRO_CONFIG0, &cfg, 1), TAG, "GYRO_CONFIG0 write failed");
 
@@ -169,17 +169,17 @@ esp_err_t icm426xx_init_I2C(void)
     cfg = 0x20; // Change to Little Endian format
     ESP_RETURN_ON_ERROR(i2c_write(INTF_CONFIG0, &cfg, 1), TAG, "INTF_CONFIG0 write failed");
 
-    // レジスタ確認・WHO_AM_Iチェック
+    // Verify registers and check WHO_AM_I.
     ESP_RETURN_ON_ERROR(read_who_am_i(), TAG, "WHO_AM_I check failed");
     ESP_RETURN_ON_ERROR(icm426xx_get_fs(), TAG, "get_fs failed");
 
-    // --- Phase 1 のバスを解放 ---
+    // --- Release the Phase 1 bus. ---
     ESP_RETURN_ON_ERROR(i2c_master_bus_rm_device(dev_handle), TAG, "rm_device failed");
     ESP_RETURN_ON_ERROR(i2c_del_master_bus(bus_handle), TAG, "del_master_bus failed");
 
     waitTaskms(100);
 
-    // --- GPIO（IMU_INT0）の設定 ---
+    // --- Configure GPIO (IMU_INT0). ---
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << IO_10),
         .mode = GPIO_MODE_INPUT,
@@ -189,7 +189,7 @@ esp_err_t icm426xx_init_I2C(void)
     };
     ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "GPIO config failed");
 
-    // --- Phase 2: 非同期配信用（trans_queue_depth 設定済み）のI2Cバス再生成 ---
+    // --- Phase 2: Recreate the I2C bus for asynchronous transfers with trans_queue_depth configured. ---
     i2c_master_bus_config_t async_bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .i2c_port = I2C_NUM_0,
@@ -202,7 +202,7 @@ esp_err_t icm426xx_init_I2C(void)
     ESP_RETURN_ON_ERROR(i2c_new_master_bus(&async_bus_config, &bus_handle), TAG, "Phase2 bus init failed");
     ESP_RETURN_ON_ERROR(i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle), TAG, "Phase2 add dev failed");
 
-    // コールバックの登録
+    // Register the callback.
     i2c_master_event_callbacks_t cbs = {
         .on_trans_done = i2c_trans_done_callback,
     };

@@ -4,17 +4,17 @@
 static const char TAG[] = "icm426xx_spi";
 
 // uint16_t imu_timestamp_us = 0;
-volatile uint16_t fsync_time_delta = 0; // FSYNCからODRまでのタイムデルタ
+volatile uint16_t fsync_time_delta = 0; // Time delta from FSYNC to ODR
 
 #define PIN_CS IO_9
 #define PIN_SCLK IO_8
 #define PIN_SDA IO_7
 
-// Bank 0 レジスタ定義
+// Bank 0 register definitions
 #define REG_DEVICE_CONFIG 0x01
 #define REG_ACCEL_DATA_X1 0x0B
-#define REG_TMST_FSYNCH 0x17 // FSYNCタイムデルタ Hiバイト (0x17)
-#define REG_TMST_FSYNCL 0x18 // FSYNCタイムデルタ Loバイト (0x18)
+#define REG_TMST_FSYNCH 0x17 // FSYNC time delta high byte (0x17)
+#define REG_TMST_FSYNCL 0x18 // FSYNC time delta low byte (0x18)
 #define REG_PWR_MGMT0 0x1F
 #define REG_GYRO_CONFIG0 0x20
 #define REG_ACCEL_CONFIG0 0x21
@@ -23,7 +23,7 @@ volatile uint16_t fsync_time_delta = 0; // FSYNCからODRまでのタイムデ�
 #define REG_INTF_CONFIG0 0x35
 #define REG_WHO_AM_I 0x75
 
-// Bank MREG1 アクセス用（Bank 0 レジスタ）
+// Bank 0 registers for accessing Bank MREG1
 #define REG_BLK_SEL_W 0x79
 #define REG_MADDR_W 0x7A
 #define REG_M_W 0x7B
@@ -35,12 +35,12 @@ volatile uint16_t fsync_time_delta = 0; // FSYNCからODRまでのタイムデ�
 
 #define GY_SENSITIVITY (1.0f / 65.5f)       // deg/sec/LSB  ±500 dps
 #define GRAVITY 9.80665f                    //
-#define AC_SENSITIVITY (GRAVITY / 16384.0f) // ±2g設定時 (m/s^2 単位)
+#define AC_SENSITIVITY (GRAVITY / 16384.0f) // When configured for ±2 g (in m/s^2).
 
 static spi_device_handle_t spi_handle = NULL;
 
 //////////////////////////////////////////////////////////////////////////////
-// 書き込み関数（command_bits = 8 を使用）
+// Write a register using command_bits = 8.
 static esp_err_t icm426xx_write_reg_SPI(uint8_t reg, uint8_t val)
 {
     if (spi_handle == NULL)
@@ -49,19 +49,19 @@ static esp_err_t icm426xx_write_reg_SPI(uint8_t reg, uint8_t val)
     uint8_t data_val = val;
     spi_transaction_t t = {
         .flags = 0,
-        .cmd = reg & 0x7F, // Write時はMSB = 0
-        .length = 8,       // データ部1バイト
+        .cmd = reg & 0x7F, // MSB is 0 for writes.
+        .length = 8,       // One byte of data.
         .tx_buffer = &data_val,
         .rx_buffer = NULL,
     };
     return spi_device_transmit(spi_handle, &t);
 }
 
-// MREG1 間接書き込み用関数
+// Write to MREG1 indirectly.
 static esp_err_t icm426xx_write_mreg1_SPI(uint8_t reg, uint8_t val)
 {
     esp_err_t ret;
-    ret = icm426xx_write_reg_SPI(REG_BLK_SEL_W, 0x00); // MREG1選択
+    ret = icm426xx_write_reg_SPI(REG_BLK_SEL_W, 0x00); // Select MREG1.
     if (ret != ESP_OK)
         return ret;
     ret = icm426xx_write_reg_SPI(REG_MADDR_W, reg);
@@ -71,17 +71,17 @@ static esp_err_t icm426xx_write_mreg1_SPI(uint8_t reg, uint8_t val)
     if (ret != ESP_OK)
         return ret;
 
-    esp_rom_delay_us(10); // MREGアクセス後の必要な10usウェイト
+    esp_rom_delay_us(10); // Required 10-us delay after MREG access.
 
-    // BLK_SEL_W を0x00にリセット
+    // Reset BLK_SEL_W to 0x00.
     return icm426xx_write_reg_SPI(REG_BLK_SEL_W, 0x00);
 }
 
-// MREG1 間接読み出し用関数
+// Read from MREG1 indirectly.
 static uint8_t icm426xx_read_mreg1_SPI(uint8_t reg)
 {
     uint8_t val = 0;
-    icm426xx_write_reg_SPI(REG_BLK_SEL_R, 0x00); // MREG1選択 (Read用)
+    icm426xx_write_reg_SPI(REG_BLK_SEL_R, 0x00); // Select MREG1 for reading.
     icm426xx_write_reg_SPI(REG_MADDR_R, reg);
     esp_rom_delay_us(10);
 
@@ -100,13 +100,13 @@ static uint8_t icm426xx_read_mreg1_SPI(uint8_t reg)
     return val;
 }
 
-// 属性およびMREG1設定の確認用関数
+// Verify device attributes and MREG1 settings.
 static void read_attr()
 {
     if (spi_handle == NULL)
         return;
 
-    // 1. WHO_AM_I (0x75) の読み出し
+    // 1. Read WHO_AM_I (0x75).
     spi_transaction_t t_whoami = {
         .flags = SPI_TRANS_USE_RXDATA,
         .cmd = REG_WHO_AM_I | IMU_READ_BIT,
@@ -118,7 +118,7 @@ static void read_attr()
         ESP_LOGI(TAG, "WHO_AM_I: 0x%02x", t_whoami.rx_data[0]);
     }
 
-    // 2. GYRO_CONFIG0 (0x20) の読み出し（FS と ODR）
+    // 2. Read GYRO_CONFIG0 (0x20) (FS and ODR).
     spi_transaction_t t_gyro_cfg = {
         .flags = SPI_TRANS_USE_RXDATA,
         .cmd = REG_GYRO_CONFIG0 | IMU_READ_BIT,
@@ -133,7 +133,7 @@ static void read_attr()
         ESP_LOGI(TAG, "GYRO_CONFIG0: 0x%02x (FS_SEL=%d, ODR=%d)", val, fs_sel, odr);
     }
 
-    // 3. ACCEL_CONFIG0 (0x21) の読み出し（FS と ODR）
+    // 3. Read ACCEL_CONFIG0 (0x21) (FS and ODR).
     spi_transaction_t t_accel_cfg = {
         .flags = SPI_TRANS_USE_RXDATA,
         .cmd = REG_ACCEL_CONFIG0 | IMU_READ_BIT,
@@ -148,7 +148,7 @@ static void read_attr()
         ESP_LOGI(TAG, "ACCEL_CONFIG0: 0x%02x (FS_SEL=%d, ODR=%d)", val, fs_sel, odr);
     }
 
-    // 4. MREG1: TMST_CONFIG1 (アドレス 0x00) の読み出し確認
+    // 4. Verify the MREG1 TMST_CONFIG1 value (address 0x00).
     uint8_t tmst_cfg1 = icm426xx_read_mreg1_SPI(0x00);
     ESP_LOGI(TAG, "MREG1 TMST_CONFIG1: 0x%02x", tmst_cfg1);
 }
@@ -231,13 +231,13 @@ esp_err_t icm426xx_init_SPI()
         .quadhd_io_num = -1,
         .max_transfer_sz = 32};
 
-    // command_bits = 8 を有効にし、.cmdフェーズを利用する設定
+    // Enable command_bits = 8 to use the .cmd phase.
     const spi_device_interface_config_t dev_cfg = {
         .clock_speed_hz = 10 * 1000 * 1000,
         .mode = 0,
         .spics_io_num = PIN_CS,
         .queue_size = 7,
-        .command_bits = 8, // コマンドフェーズ（8ビット）を使用
+        .command_bits = 8, // Use an 8-bit command phase.
         .address_bits = 0,
         .flags = SPI_DEVICE_HALFDUPLEX | SPI_DEVICE_3WIRE,
     };

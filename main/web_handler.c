@@ -185,7 +185,7 @@ static esp_err_t generate_204_handler(httpd_req_t *req)
     log_uri(req);
 
     httpd_resp_set_status(req, "302 Found");
-    httpd_resp_set_hdr(req, "Location", "/"); // ← 操作UI
+    httpd_resp_set_hdr(req, "Location", "/"); // Redirect to the control UI.
     return httpd_resp_send(req, NULL, 0);
 }
 
@@ -257,10 +257,10 @@ esp_err_t root_get_handler(httpd_req_t *req)
             inet_ntop(AF_INET6, &a6->sin6_addr, ip_str, sizeof(ip_str));
             port = ntohs(a6->sin6_port);
 
-            // ★ IPv4-mapped IPv6 判定
+            // Check for IPv4-mapped IPv6.
             if (IN6_IS_ADDR_V4MAPPED(&a6->sin6_addr))
             {
-                // ::FFFF:xxxx:xxxx → IPv4抽出
+                // Extract the IPv4 address from ::FFFF:xxxx:xxxx.
                 memcpy(&client_ip.s_addr,
                        &a6->sin6_addr.s6_addr[12],
                        sizeof(client_ip.s_addr));
@@ -272,7 +272,7 @@ esp_err_t root_get_handler(httpd_req_t *req)
             }
             else
             {
-                client_ip.s_addr = 0; // 純IPv6は無視
+                client_ip.s_addr = 0; // Ignore native IPv6 addresses.
             }
         }
     }

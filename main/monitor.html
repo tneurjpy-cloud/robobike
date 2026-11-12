@@ -137,24 +137,24 @@
             "ACC_Z",    // 12
         ];
         const colors = [
-            null, null, // 0: HEADER, 1: TIME_MS (描画しないためnull)
+            null, null, // 0: HEADER, 1: TIME_MS (null because it is not drawn)
 
-            // サーボ関連:
-            "#ff4444",  // 2: SV_DRV  (赤)
-            "#ff8c00",  // 3: SV_STR  (ダークオレンジ)
-            "#ff44ff",  // 4: SV_STD  (マゼンタ)
-            "#ffb6c1",  // 5: SWP_SG  (ライトピンク)
-            "#ffff44",  // 6: SV_POS  (黄)
+            // Servo signals:
+            "#ff4444",  // 2: SV_DRV  (red)
+            "#ff8c00",  // 3: SV_STR  (dark orange)
+            "#ff44ff",  // 4: SV_STD  (magenta)
+            "#ffb6c1",  // 5: SWP_SG  (light pink)
+            "#ffff44",  // 6: SV_POS  (yellow)
 
-            // ジャイロ
-            "#4444ff",  // 7: GY_ROLL   (青)
-            "#00ffff",  // 8: GY_YAW    (シアン)
-            "#9400d3",  // 9: GY_PITCH  (ダークバイオレット)
+            // Gyroscope:
+            "#4444ff",  // 7: GY_ROLL   (blue)
+            "#00ffff",  // 8: GY_YAW    (cyan)
+            "#9400d3",  // 9: GY_PITCH  (dark violet)
 
-            // 加速度
-            "#44ff44",  // 10: ACC_X  (明るい緑)
-            "#00aa00",  // 11: ACC_Y  (深めの緑)
-            "#adff2f",  // 12: ACC_Z  (緑黄 / グリーンイエロー)
+            // Acceleration:
+            "#44ff44",  // 10: ACC_X  (bright green)
+            "#00aa00",  // 11: ACC_Y  (dark green)
+            "#adff2f",  // 12: ACC_Z  (yellow-green)
         ];
 
         const COMMAND_NAMES = [
@@ -188,7 +188,7 @@
         const DOT_MS = 5;
         let svPosEma = 0;
 
-        // 連打時やパケット詰まり時の重複リクエストを防ぐフラグ
+        // Prevent duplicate requests from repeated taps or network congestion.
         let isFetchingData = false;
 
         function resizeCanvas() {
@@ -222,7 +222,7 @@
             fetch(`/command?button=${id}`);
         }
 
-        // 定期周期で呼ばれる更新関数を非同期（async）化
+        // Make the periodically called update function asynchronous.
         async function update() {
             if (isPaused || isFetchingData) return;
 
@@ -284,7 +284,7 @@
                         }
 
                         let currentSvStr = 0;
-                        let val = parseFloat(p[i]); // 計算の前にまず val をパースしておく
+                        let val = parseFloat(p[i]); // Parse the value before using it in calculations.
                         let currentScale;
                         switch (i) {
                             case 2: // SV_DRV
@@ -405,7 +405,7 @@
             } catch (error) {
                 console.error('Data fetch error:', error);
             } finally {
-                isFetchingData = false; // エラーが起きても必ず通信中フラグを下ろす
+                isFetchingData = false; // Always clear the in-progress flag, even if an error occurs.
             }
         }
 
@@ -456,7 +456,7 @@
             lastDrawnSecond = -1;
         }
 
-        // 実行部 /////////////////////////////////////////////////////////////////////////////
+        // Run /////////////////////////////////////////////////////////////////////////////
         resizeCanvas();
         setInterval(update, 50);
 

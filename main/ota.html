@@ -61,12 +61,12 @@
             transition: all 0.3s ease;
             min-height: 140px;
             box-sizing: border-box;
-            /* タップ遅延とダブルタップズームを無効化 */
+            /* Disable tap delay and double-tap zoom. */
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* 子要素のタップイベントが邪魔しないように設定 */
+        /* Prevent child elements from interfering with tap events. */
         .upload-area * {
             pointer-events: none;
         }
@@ -159,7 +159,7 @@
     <div class="card">
         <h2>ROBOBIKE<br>Program Update</h2>
 
-        <!-- labelからdivに変更し、明示的にJSで呼び出す方式に修正 -->
+        <!-- Use a div instead of a label and trigger the file input explicitly in JavaScript. -->
         <div class="upload-area" id="drop-zone">
             <span class="upload-icon">📁</span>
             <span style="font-size: 14px;">Select or drag the update file here</span>
@@ -183,7 +183,7 @@
         const uploadBtn = document.getElementById('upload-btn');
         const dropZone = document.getElementById('drop-zone');
 
-        // アップロードエリアをタップした際に明示的にfileInputをクリックさせる
+        // Explicitly click the file input when the upload area is tapped.
         dropZone.addEventListener('click', () => {
             fileInput.click();
         });

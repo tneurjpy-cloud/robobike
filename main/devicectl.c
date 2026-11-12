@@ -8,16 +8,15 @@
 #include "esp_brownout.h"
 
 static const char TAG[] = "userdevice";
-// deviation 偏差
+// Deviation
 
 int PCBver = 0;
 
 volatile uint32_t userLastControlTime = 0; // for sleep check counter
 volatile uint32_t startTime;
-// ADC1のハンドルを保持する変数
+// ADC1 unit handle
 adc_oneshot_unit_handle_t adc1_handle;
 
-#define SAVETYPE TSave
 static const char *NVSname = "nvs_data";
 static volatile bool can_NVS_write = true;
 
@@ -49,10 +48,10 @@ static uint32_t getCRC32(const uint8_t *p, uint32_t size)
     return crc ^ 0xFFFFFFFF; /* Final XOR */
 }
 
-static uint32_t getCRC_Tsave(SAVETYPE *data)
+static uint32_t getCRC_Tsave(TSave *data)
 {
     uint8_t *p = (uint8_t *)data;
-    return getCRC32(p, offsetof(SAVETYPE, CRC));
+    return getCRC32(p, offsetof(TSave, CRC));
 }
 
 // get system ID = Serial-Code
@@ -145,7 +144,7 @@ void nvs_init()
 {
     nvs_handle_t hNVS;
 
-    // 1. NVSの初期化を試みる
+    // 1. Initialize NVS.
     esp_err_t err = nvs_flash_init();
 
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND)
@@ -217,7 +216,7 @@ void chk_PCBver()
     gpio_config_t io_conf;
     bool IO_8_is_high = false;
 
-    io_conf.pin_bit_mask = (1ULL << IO_8);    //v5以下 IO_8 サーボ信号検出ポート設定
+    io_conf.pin_bit_mask = (1ULL << IO_8);    // Configure IO_8 to detect the servo signal on PCB v5 and earlier.
     io_conf.mode = GPIO_MODE_INPUT;
     io_conf.intr_type = GPIO_INTR_DISABLE;
     io_conf.pull_down_en = GPIO_PULLDOWN_ENABLE; // PULLDOWN
@@ -276,16 +275,16 @@ void userdeviceinit()
     esp_brownout_register_callback(brownout_callback);
     nvs_init(); // nvs memory read
 
-    // ADC1ユニットの初期化設定
+    // Configure the ADC1 unit.
     adc_oneshot_unit_init_cfg_t init_config = {
         .unit_id = ADC_UNIT_1,
     };
     adc_oneshot_new_unit(&init_config, &adc1_handle);
 
-    // ADC1_CHANNEL_2 (GPIO 2) の設定
+    // Configure ADC1_CHANNEL_2 (GPIO 2).
     adc_oneshot_chan_cfg_t config = {
-        .bitwidth = ADC_BITWIDTH_12, // 12bit解像度 (0-4095)
-        .atten = ADC_ATTEN_DB_12,    // 約0.1V - 2.8Vの範囲を測定可能
+        .bitwidth = ADC_BITWIDTH_12, // 12-bit resolution (0-4095)
+        .atten = ADC_ATTEN_DB_12,    // Approximate measurement range: 0.1 V to 2.8 V
     };
     adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_2, &config);
 

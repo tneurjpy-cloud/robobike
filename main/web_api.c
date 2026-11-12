@@ -2,7 +2,7 @@
 
 static const char *TAG = "web_api";
 
-// 名前変換関数を定義
+// Convert command IDs to names.
 const char *cmdID_to_str(TcmdID id)
 {
     switch (id)
@@ -20,7 +20,6 @@ const char *cmdID_to_str(TcmdID id)
 char *get_edit_data()
 {
     static char rescsv[128];
-    memset(rescsv, '\0', sizeof(rescsv));
 
     float str_cmd_rate = (float)str_cmd0 / (float)saved.str_turn * STR_SLIDER_MAX;
 
@@ -86,8 +85,8 @@ typedef struct
 } Tlogvector;
 
 Tlogvector ring_buffer[RING_BUF_SIZE];
-static volatile uint16_t index_w = 0; // 次に書き込む位置
-static volatile uint16_t index_r = 0; // 最後に読み出した位置
+static volatile uint16_t index_w = 0; // Next write position
+static volatile uint16_t index_r = 0; // Last read position
 
 ////////////////////////////////////////////////////////
 /// called in Control task for data logging
@@ -108,7 +107,7 @@ void put_control_data()
     p->std = ex1_out;
     p->swp_sg = swp_sg;
     p->sv_pos = adc_raw * (180.0f / 4096.0f) - 90.0f;
-    atomic_thread_fence(memory_order_release); // まずここまでを確実に実行し、メモリに書き出せ
+    atomic_thread_fence(memory_order_release); // Ensure all writes above are visible before proceeding.
     index_w = (index_w + 1) % RING_BUF_SIZE;
 
     if (index_w == index_r) // Over flow,
@@ -217,7 +216,7 @@ static void cmdProcTask(void *pvParameters)
             rollgain_setup();
             if (mot_out != 0.0f) // running
             {
-                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / sv_freq); // ゆっくりと戻す
+                set_str_cmd(0.0f, saved.str_cmd_speed * 0.5f / sv_freq); // Return slowly.
             }
             else // start on stop
             {    // down the stand slowly, motor on, up the stand
@@ -249,8 +248,8 @@ static void cmdProcTask(void *pvParameters)
                     wait_str_angle();
                     waitTaskms(100);
                 }
-                set_str_cmd(-STR_STOP, 1.0f);                         // 左舵
-                set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // スタンドを先に出す
+                set_str_cmd(-STR_STOP, 1.0f);                         // Turn left.
+                set_ex1_angle(saved.ang_std_nut + STD_STD_NUT, 0.0f); // Deploy the stand first.
                 waitTaskms(300);
                 auto_disable();
                 set_str_cmd(STR_STOP, 1.5f);
@@ -321,7 +320,7 @@ esp_err_t put_command(control_msg_t *msg)
 {
     esp_err_t res = pdPASS;
 
-    if (xcmdProc_TaskHandle == NULL) // 排他制御のためのオブジェクトを準備
+    if (xcmdProc_TaskHandle == NULL) // Create the object used for mutual exclusion.
     {
         UBaseType_t currentPriority = uxTaskPriorityGet(NULL);
         UBaseType_t newPriority = (currentPriority > 0) ? (currentPriority - 1) : 0;
@@ -330,16 +329,16 @@ esp_err_t put_command(control_msg_t *msg)
     }
 
     xcmdProc_CallerHandle = xTaskGetCurrentTaskHandle();
-    xTaskNotifyStateClear(NULL); // 終了待ちフラグクリア
-    if (cmdProc_busy)            // 長時間コマンド実行中である
+    xTaskNotifyStateClear(NULL); // Clear the completion-wait flag.
+    if (cmdProc_busy)            // A long-running command is in progress.
     {
         if (msg->id == bt_L || msg->id == bt_R)
         {
-            // 発進シーケンス中の操舵は待。この後のコマンドはweb server待ち行列で待つ
+            // Wait for steering commands during startup; subsequent commands queue in the web server.
             ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         }
         else
-        { // ほかの場合は何もせず帰る
+        { // Ignore other commands while busy.
             return res;
         }
     }
@@ -348,7 +347,7 @@ esp_err_t put_command(control_msg_t *msg)
         ESP_LOGI(TAG, "put cmd= %s", cmdID_to_str(msg->id));
 
     switch (msg->id)
-    { // 即座に帰るべきコマンドはこの関数内で処理
+    { // Handle commands that should return immediately in this function.
     case unknown:
         break;
 
@@ -374,7 +373,7 @@ esp_err_t put_command(control_msg_t *msg)
         break;
 
     case bt_BK:
-        if (mot_out == 0) // 停止中
+        if (mot_out == 0) // Stopped
         {
             set_mot_duty(MOT_SPEED_BACK, (40.0f / (float)sv_freq));
             set_led_brightness(LEDHIGH);
@@ -391,7 +390,7 @@ esp_err_t put_command(control_msg_t *msg)
             saved.mot_spd++;
         rollgain_setup();
 
-        if (mot_out > 0) // 走行中
+        if (mot_out > 0) // Moving
         {
             set_mot_duty(saved.mot_spd, 0.0f);
         }
@@ -402,7 +401,7 @@ esp_err_t put_command(control_msg_t *msg)
             saved.mot_spd--;
         rollgain_setup();
         
-        if (mot_out > 0) // 走行中
+        if (mot_out > 0) // Moving
         {
             set_mot_duty(saved.mot_spd, 0.0f);
         }

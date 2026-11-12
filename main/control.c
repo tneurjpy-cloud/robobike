@@ -22,7 +22,7 @@ void do_str_cmd_calc()
 
     switch (runState)
     {
-    case rsOuter: // 円周外 通常走行
+    case rsOuter: // Outside the circle: normal riding
         if (inCirc && (now - chk_start > 1000))
         {
             if (chgCount < 4)
@@ -42,9 +42,9 @@ void do_str_cmd_calc()
         }
         break;
 
-    case rsInner_Correct: // 円周内 修正動作実行
+    case rsInner_Correct: // Inside the circle: apply correction
         if (!inCirc)
-        { // 円周外
+        { // Outside the circle
             if (chgCount < 4)
             {
                 ++chgCount;
@@ -65,7 +65,7 @@ void do_str_cmd_calc()
         }
         break;
 
-    case rsInner_Stable: // 円周内 修正動作終了
+    case rsInner_Stable: // Inside the circle: correction complete
         if (!inCirc && (now - chk_start > 1000))
         {
             if (chgCount < 4)

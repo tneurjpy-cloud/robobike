@@ -5,7 +5,7 @@ const ledc_timer_config_t servo_PWM_timer = {
     .speed_mode = LED_MODE,
     .duty_resolution = LEDC_TIMER_12_BIT, // 4096 steps for 100% duty
     .timer_num = LEDC_TIMER_1,
-    .freq_hz = 1000, // 250Hz * 4 = 1000Hz (1ステージ1000us)
+    .freq_hz = 1000, // 250 Hz * 4 = 1000 Hz (1000 us per stage)
     .clk_cfg = LEDC_AUTO_CLK};
 
 const ledc_channel_config_t svch_mot = {
@@ -14,7 +14,7 @@ const ledc_channel_config_t svch_mot = {
     .timer_sel = LEDC_TIMER_1,
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_DRV,
-    .duty = PWM_DUTY_100, // 初期状態のs0は100%（H開始）
+    .duty = PWM_DUTY_100, // Initial s0 duty is 100% (starts high).
     .hpoint = 0};
 
 const ledc_channel_config_t svch_str = {
@@ -23,7 +23,7 @@ const ledc_channel_config_t svch_str = {
     .timer_sel = LEDC_TIMER_1,
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = GPIO_STR,
-    .duty = PWM_DUTY_100, // 初期状態のs0は100%（H開始）
+    .duty = PWM_DUTY_100, // Initial s0 duty is 100% (starts high).
     .hpoint = 0};
 
 ledc_channel_config_t svch_ex1 = {
@@ -32,7 +32,7 @@ ledc_channel_config_t svch_ex1 = {
     .timer_sel = LEDC_TIMER_1,
     .intr_type = LEDC_INTR_DISABLE,
     .gpio_num = 255,    // dummy
-    .duty = PWM_DUTY_0, // side スタンド 1ステージ遅らせるため、初期状態のs0は0%（L開始）
+    .duty = PWM_DUTY_0, // Initial s0 duty is 0% (starts low) to delay the side stand by one stage.
     .hpoint = 0};
 
 // LED
@@ -48,5 +48,5 @@ const ledc_channel_config_t ledc_channel = {
     .speed_mode = LED_MODE,
     .channel = LED_CHANNEL,
     .timer_sel = LED_TIMER,
-    .duty = 0, // 初期輝度
+    .duty = 0, // Initial brightness
     .hpoint = 0};

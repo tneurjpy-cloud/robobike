@@ -18,7 +18,6 @@ esp_err_t icm426xx_init_I2C();
 void icm426xx_sleep_I2C();
 void icm426xx_start_read_I2C();
 void icm426xx_get_data_I2C();
-void icm426xx_resetDigitalpath();
 
 esp_err_t icm426xx_init_SPI();
 void icm426xx_sleep_SPI();
@@ -38,7 +37,7 @@ Tvector6d acc_offset = {0, 0, 0, 0, 0, 0}; //
 volatile bool gy_auto_cal_done = false;
 
 // Determin the roll axis vector
-// 車体を実際に何度もロールさせて、ロール軸を実測する
+// Repeatedly roll the bike to measure its roll axis.
 #ifdef COMPUTE_ROLL_AXIS
 static Tvector6d gyro_data[SAMPLE_COUNT]; // array of gyro data
 void compute_roll_axis_direction(Tvector6d *data, int count)
@@ -58,12 +57,12 @@ void compute_roll_axis_direction(Tvector6d *data, int count)
     pacc->y /= count;
     pacc->z /= count;
 
-    for (int i = 0; i < count; i++) // 方向ベクトルを抽出
+    for (int i = 0; i < count; i++) // Extract the direction vector.
     {
         float dx = data[i].x - pacc->x;
         float dy = data[i].y - pacc->y;
         float dz = data[i].z - pacc->z;
-        if (DELTA_ROLL >= 0.0f) // y軸（ロール軸）方向の符号で方向を揃える
+        if (DELTA_ROLL >= 0.0f) // Align directions using the sign of the Y-axis (roll axis).
         {
             sum.x += dx;
             sum.y += dy;
@@ -92,7 +91,7 @@ void calibrate_roll()
 }
 #endif
 
-// 自動制御offの時、4msごとに呼び出してゼロ点較正
+// Called every 4 ms to calibrate the zero point when automatic control is off.
 bool IMU_getZero()
 {
     static int gyavecount = 0;

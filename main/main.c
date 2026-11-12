@@ -16,19 +16,19 @@ void check_sleep_indicator(void)
         gpio_reset_pin(LED_GPIO);
         gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
 
-        // 一瞬ピカッと光らせる（例: 30msだけ点灯）
+        // Flash the LED briefly (30 ms).
         gpio_set_level(LED_GPIO, 1);
         vTaskDelay(pdMS_TO_TICKS(30));
         gpio_set_level(LED_GPIO, 0);
 
-        // 再び10秒のタイマー設定をしてディープスリープへ戻る
+        // Set the timer again and return to deep sleep.
         esp_sleep_enable_timer_wakeup(SLEEPINTERVAL * 1000ULL); // usec
         esp_deep_sleep_start();
     }
 }
 
 // servo test
-void deviceCheck()
+static void deviceCheck(void)
 {
     // str
     set_str_cmd(15.0f, 0.0f);
@@ -76,7 +76,6 @@ void app_main(void)
 
     deviceCheck();
 
-    // set_str_cmd(0.0f, 100.0f);
     printf("PCB version: %d\n", PCBver);
     printf("PROGVER=%d DATAVER=%u SYSID=%s\n", PROGVER, DATAVER, SysID());
     printf("IMU gx=%f gy=%f gz=%f\n", acc.gx, acc.gy, acc.gz);
@@ -114,8 +113,6 @@ void app_main(void)
 
         if (isNms(&lastdone, 100))
         {
-            // extern volatile uint16_t fsync_time_delta;
-            // ESP_LOGI(TAG, "dt=%u", fsync_time_delta);
             if ((mot_out == 0.0f) && ((millis() - userLastControlTime) >= SLEEP_DURATION_MS))
             {
                 deepSleep(SLEEPINTERVAL);
