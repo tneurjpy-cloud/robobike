@@ -121,6 +121,17 @@
         </div>
     </div>
 
+    <!-- SERVO TEST -->
+    <div>
+        <div style="font-size: 16px; text-align: center; font-weight: bold;">
+            <span style="color:  teal;">SERVO TEST</span>
+        </div>
+        <div class="button-container">
+            <button class="btn-left" onclick="sendCommand('bt_servoTestON')">ON</button>
+            <button class="btn-right" onclick="sendCommand('bt_servoTestOFF')">OFF</button>
+        </div>
+    </div>
+
     <!-- Load default -->
     <div id="default-loading-dialog" style="
         display: none;
@@ -175,50 +186,15 @@
         EXIT
     </button>
 
-
-
-
-
-    
-
     <script>
         const COMMAND_NAMES = [
-            'stp_all', 
-            'only_data', 
-            'bt_F', 
-            'bt_S', 
-            'bt_L', 
-            'bt_R', 
-            'bt_Str_S', 
-            'bt_BK',
-            'bt_A_Up_0', 
-            'bt_A_Dn_0', 
-            'bt_A_Up', 
-            'bt_A_Dn', 
-            'bt_A_L', 
-            'bt_A_R',
-            'bt_S_Up', 
-            'bt_S_Dn', 
-            'bt_R_Up', 
-            'bt_R_Dn', 
-            'bt_D_St', 
-            'bt_D_Up',
-            'bt_D_Dn', 
-            'bt_Std_nutAuto', 
-            'bt_Std_nutUp', 
-            'bt_Std_nutDn',
-            'bt_str_turnUp', 
-            'bt_str_turnDn', 
-            'bt_strcmd_Up', 
-            'bt_strcmd_Dn',
-            'IR_ON', 
-            'IR_OFF', 
-            'bt_yaw_coeffUp', 
-            'bt_yaw_coeffDn',
-            'bt_sweepON', 
-            'bt_sweepOFF',
-            'bt_autoCirc_Up', 
-            'bt_autoCirc_Dn', 
+            'stp_all', 'only_data', 'bt_F', 'bt_S', 'bt_L', 'bt_R', 'bt_Str_S', 'bt_BK',
+            'bt_A_Up_0', 'bt_A_Dn_0', 'bt_A_Up', 'bt_A_Dn', 'bt_A_L', 'bt_A_R',
+            'bt_S_Up', 'bt_S_Dn', 'bt_R_Up', 'bt_R_Dn', 'bt_D_St', 'bt_D_Up',
+            'bt_D_Dn', 'bt_Std_nutAuto', 'bt_Std_nutUp', 'bt_Std_nutDn',
+            'bt_str_turnUp', 'bt_str_turnDn', 'bt_strcmd_Up', 'bt_strcmd_Dn',
+            'IR_ON', 'IR_OFF', 'bt_yaw_coeffUp', 'bt_yaw_coeffDn',
+            'bt_sweepON', 'bt_sweepOFF',
             'bt_Ld_Default'
         ];
 

@@ -179,6 +179,7 @@ extern TSave saved;
 extern const TSave savedefault;
 
 extern bool auto_en;
+extern bool doSweep;
 
 extern volatile uint32_t userLastControlTime;
 

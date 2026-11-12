@@ -275,6 +275,7 @@ void wait_ex1_angle()
 }
 
 /// in ControlTask ///
+// Expanded resolution/steps from 1000 to 4000.
 static void do_ex1_out()
 {
     if (ex1_step == 0.f)
@@ -294,17 +295,15 @@ static void do_ex1_out()
         ex1_out = ex1_cmd;
     }
 
-    int32_t pulsew = (int32_t)(ex1_out * ANG2PULSE) + 1500;
+    float pulsew = (float)((ex1_out * ANG2PULSE) + 1500.0f);
 
-    if (pulsew < PWM_MINLEN)
-        pulsew = PWM_MINLEN;
-    if (pulsew > PWM_MAXLEN)
-        pulsew = PWM_MAXLEN;
+    if (pulsew < (float)PWM_MINLEN)
+        pulsew = (float)PWM_MINLEN;
+    if (pulsew > (float)PWM_MAXLEN)
+        pulsew = (float)PWM_MAXLEN;
 
-    uint32_t pulse_s1 = pulsew - PWM_STAGE_LEN;
-
-    // ★直接レジスタは叩かず、バッファに保存（cb2のタイミングで安全に仕込むため）
-    duty_ex1_s2 = (pulse_s1 * PWM_DUTY_100) / PWM_STAGE_LEN;
+    float pulse_s1 = pulsew - (float)PWM_STAGE_LEN;
+    duty_ex1_s2 = (int32_t)(pulse_s1 * ((float)PWM_DUTY_100 / (float)PWM_STAGE_LEN));
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -315,6 +314,7 @@ void wait_mot_duty()
         waitTaskms(10);
     }
 }
+
 void set_mot_duty(float duty, float step)
 {
     mot_cmd = duty;
@@ -351,8 +351,8 @@ static void do_mot_out()
     uint32_t pulse_s1 = mot_pw - PWM_STAGE_LEN;
     uint32_t duty_s1 = (pulse_s1 * PWM_DUTY_100) / PWM_STAGE_LEN;
 
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_s1);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
+    ledc_set_duty(LED_MODE, svch_mot.channel, duty_s1);
+    ledc_update_duty(LED_MODE, svch_mot.channel);
     duty_mot_prev = duty_s1;
 }
 
@@ -397,18 +397,18 @@ static void str_easing()
 void str_pwm_out(float angle)
 {
     str_out = angle;
-    int32_t pulsew = (int32_t)((angle + (float)saved.str0) * ANG2PULSE) + 1500;
+    // calculate in float
+    float pulsew = (float)((angle + (float)saved.str0) * ANG2PULSE) + 1500.0f;
 
-    if (pulsew < PWM_MINLEN)
-        pulsew = PWM_MINLEN;
-    if (pulsew > PWM_MAXLEN)
-        pulsew = PWM_MAXLEN;
+    if (pulsew < (float)PWM_MINLEN)
+        pulsew = (float)PWM_MINLEN;
+    if (pulsew > (float)PWM_MAXLEN)
+        pulsew = (float)PWM_MAXLEN;
 
-    uint32_t pulse_s1 = pulsew - PWM_STAGE_LEN;
-    uint32_t duty_s1 = (pulse_s1 * PWM_DUTY_100) / PWM_STAGE_LEN;
-
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_s1);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
+    float pulse_s1 = pulsew - (float)PWM_STAGE_LEN; // usec
+    uint32_t duty_s1 = (uint32_t)(pulse_s1 * ((float)PWM_DUTY_100 / (float)PWM_STAGE_LEN));
+    ledc_set_duty(LED_MODE, svch_str.channel, duty_s1);
+    ledc_update_duty(LED_MODE, svch_str.channel);
     duty_str_prev = duty_s1;
 }
 
@@ -438,8 +438,8 @@ static const float spd_g_tbl_y[] =
 void rollgain_setup()
 {
     gain_roll_using = saved.gain_w_roll *
-                       finterp(saved.mot_spd, spd_g_tbl_x, spd_g_tbl_y,
-                               sizeof(spd_g_tbl_y) / sizeof(spd_g_tbl_y[0]));
+                      finterp(saved.mot_spd, spd_g_tbl_x, spd_g_tbl_y,
+                              sizeof(spd_g_tbl_y) / sizeof(spd_g_tbl_y[0]));
 }
 
 static void gyroServiceLoop()
@@ -487,10 +487,10 @@ static void ControlTask(void *pvParameters)
 
         gpio_set_level(GPIO_IR_LED, 1); // IR LED ON
         // 通信で遅れる可能性にかんがみ、前回値を保険として先出ししておく
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, duty_str_prev);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, duty_mot_prev);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
+        ledc_set_duty(LED_MODE, svch_str.channel, duty_str_prev);
+        ledc_update_duty(LED_MODE, svch_str.channel);
+        ledc_set_duty(LED_MODE, svch_mot.channel, duty_mot_prev);
+        ledc_update_duty(LED_MODE, svch_mot.channel);
 
         gyroServiceLoop(); // 最速でIMU読み込み（間に合えば最新値に上書きラッチされる）
 
@@ -523,8 +523,8 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         vTaskNotifyGiveFromISR(xControlTaskHandle, &xHigherPriorityTaskWoken);
         if (!stopServo)
         {
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_100);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+            ledc_set_duty(LED_MODE, svch_ex1.channel, PWM_DUTY_100);
+            ledc_update_duty(LED_MODE, svch_ex1.channel);
         }
         next_alarm.alarm_count = firstDelay_us + STG_INTRVL;
         gptimer_set_alarm_action(timer, &next_alarm);
@@ -533,14 +533,14 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         break;
 
     case cb1:
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_0);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_0);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
+        ledc_set_duty(LED_MODE, svch_str.channel, PWM_DUTY_0);
+        ledc_update_duty(LED_MODE, svch_str.channel);
+        ledc_set_duty(LED_MODE, svch_mot.channel, PWM_DUTY_0);
+        ledc_update_duty(LED_MODE, svch_mot.channel);
         if (!stopServo)
         {
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, duty_ex1_s2);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+            ledc_set_duty(LED_MODE, svch_ex1.channel, duty_ex1_s2);
+            ledc_update_duty(LED_MODE, svch_ex1.channel);
         }
         next_alarm.alarm_count = firstDelay_us + STG_INTRVL * 2;
         gptimer_set_alarm_action(timer, &next_alarm);
@@ -548,24 +548,24 @@ static bool IRAM_ATTR sync_timer_isr_cb(
         break;
 
     case cb2:
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+        ledc_set_duty(LED_MODE, svch_ex1.channel, PWM_DUTY_0);
+        ledc_update_duty(LED_MODE, svch_ex1.channel);
 
         next_alarm.alarm_count = firstDelay_us + STG_INTRVL * 3;
         gptimer_set_alarm_action(timer, &next_alarm);
         sync_step++;
         break;
 
-    case cb3:
+    case cb3: //Outputs are all L in this stage 
         if (!stopServo)
         {
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_str.channel, PWM_DUTY_100);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_str.channel);
-            ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel, PWM_DUTY_100);
-            ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_mot.channel);
+            ledc_set_duty(LED_MODE, svch_str.channel, PWM_DUTY_100);
+            ledc_update_duty(LED_MODE, svch_str.channel);
+            ledc_set_duty(LED_MODE, svch_mot.channel, PWM_DUTY_100);
+            ledc_update_duty(LED_MODE, svch_mot.channel);
         }
-        ledc_set_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel, PWM_DUTY_0);
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, svch_ex1.channel);
+        ledc_set_duty(LED_MODE, svch_ex1.channel, PWM_DUTY_0);
+        ledc_update_duty(LED_MODE, svch_ex1.channel);
         sync_step = cb0;
         gptimer_stop(timer); // 自走終了 外部割込み待ちへ
 
@@ -596,9 +596,9 @@ static bool IRAM_ATTR sync_timer_isr_cb(
             PWM_pause_us = PWM_pause_us_NOMINAL + 2; // 375us + 2
         }
         // LEDC pause time
-        ledc_timer_pause(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);
+        ledc_timer_pause(LED_MODE, servo_PWM_timer.timer_num);
         esp_rom_delay_us(PWM_pause_us);
-        ledc_timer_resume(LEDC_LOW_SPEED_MODE, servo_PWM_timer.timer_num);
+        ledc_timer_resume(LED_MODE, servo_PWM_timer.timer_num);
         break;
     }
 

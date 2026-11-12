@@ -19,7 +19,6 @@ const char *cmdID_to_str(TcmdID id)
 
 char *get_edit_data()
 {
-    extern bool doSweep;
     static char rescsv[128];
     memset(rescsv, '\0', sizeof(rescsv));
 
